@@ -1,0 +1,133 @@
+% TeX root = main.tex
+
+%% general
+\mathchardef\mhyphen="2D
+\newcommand{\fdv}{\mathcal{F}}
+\newcommand{\tdv}{\mathcal{T}}
+\newcommand{\vdv}{\mathcal{V}}
+\newcommand{\cX}{\mathcal{X}}
+\newcommand{\cF}{\mathcal{F}}
+\newcommand{\cG}{\mathcal{G}}
+\newcommand{\ID}{\mathcal{I}}
+\newcommand{\bits}[1][]{\{0,1\}^{#1}}
+\renewcommand{\vec}[1]{\mathbf{#1}}
+\newcommand{\mat}[1]{\mathbf{#1}}
+\newcommand{\inner}[2]{\langle #1, #2 \rangle}
+\newcommand{\transpose}{\mathtt{T}}
+\newcommand{\round}[1]{\lfloor #1 \rceil}
+\renewcommand{\dist}{\mathsf{dist}}
+\renewcommand{\Pr}[2][]{{\text{Pr}_{#1}\left[#2\right]}}
+\newcommand{\Exp}[2][]{{\mathbb{E}_{#1}\left[#2\right]}}
+\newcommand{\mathcm}[2][1cm]{\hspace{#1}{\mbox{/\!\!/ } \text{\scriptsize#2}}}
+
+%% lattice problems
+\newcommand{\SIS}{\mathsf{SIS}}
+\newcommand{\ISIS}{\mathsf{ISIS}}
+\newcommand{\nfSIS}{\mathsf{nfSIS}}
+\newcommand{\dSIS}{\mathsf{dSIS}}
+\newcommand{\LWE}{\mathsf{LWE}}
+\newcommand{\nfLWE}{\mathsf{nfLWE}}
+\newcommand{\nfdLWE}{\mathsf{nfdLWE}}
+\newcommand{\sLWE}{\mathsf{sLWE}}
+\newcommand{\dLWE}{\mathsf{dLWE}}
+\newcommand{\SVP}{\mathsf{SVP}}
+\newcommand{\CVP}{\mathsf{CVP}}
+\newcommand{\SIVP}{\mathsf{SIVP}}
+\newcommand{\GapSVP}{\mathsf{GapSVP}}
+\newcommand{\BDD}{\mathsf{BDD}}
+\newcommand{\NTRU}{\mathsf{NTRU}}
+\newcommand{\sNTRU}{\mathsf{sNTRU}}
+\newcommand{\dNTRU}{\mathsf{dNTRU}}
+
+%% lattice macros
+\newcommand{\TT}{\mathbb{T}}
+\newcommand{\ring}{\mathcal{R}}
+\newcommand{\lattice}{\mathcal{L}}
+\newcommand{\piped}{\mathcal{P}}
+\newcommand{\ball}{\mathcal{B}}
+\newcommand{\Hyb}{\mathsf{Hyb}}
+\newcommand{\lspan}{\mathsf{span}}
+\newcommand{\rank}{\mathsf{rank}}
+\newcommand{\lsb}{\mathsf{LSB}}
+\newcommand{\pubparam}{\mathsf{pp}}
+
+%% group macros
+
+%% syntax
+\newcommand{\mpk}{\mathsf{mpk}}
+\newcommand{\msk}{\mathsf{msk}}
+\newcommand{\msg}{\mathsf{msg}}
+\newcommand{\rnd}{\mathsf{rnd}}
+\newcommand{\ctxt}{\mathsf{ctxt}}
+\newcommand{\com}{\mathsf{com}}
+\newcommand{\td}{\mathsf{td}}
+\newcommand{\id}{\mathsf{id}}
+\newcommand{\stmt}{\mathsf{stmt}}
+\newcommand{\wit}{\mathsf{wit}}
+\newcommand{\tx}{\mathsf{tx}}
+\newcommand{\aux}{\mathsf{aux}}
+\newcommand{\ek}{\mathsf{ek}}
+
+\newcommand{\Setup}{\mathsf{Setup}}
+\newcommand{\Commit}{\mathsf{Com}}
+\newcommand{\TrapGen}{\mathsf{TrapGen}}
+\newcommand{\SampD}{\mathsf{SampD}}
+\newcommand{\SampPre}{\mathsf{SampPre}}
+\newcommand{\Prove}{\mathsf{Prove}}
+\newcommand{\Verify}{\mathsf{Verify}}
+\newcommand{\val}{\mathsf{val}}
+
+%% primitive/scheme name
+\newcommand{\PKE}{\mathsf{PKE}}
+\newcommand{\LTDF}{\mathsf{LTDF}}
+\newcommand{\rsagen}{\mathsf{RSAGen}}
+\newcommand{\rsa}{\mathsf{RSA}}
+\newcommand{\LHE}{\mathsf{LHE}}
+\newcommand{\C}{\mathcal{CS}}
+\newcommand{\NTRUEncrypt}{\mathsf{NTRUEncrypt}}
+
+%% others
+\newcommand{\oracle}{\mathcal{O}}
+\newcommand{\pcas}{~\mathbf{as}~}
+
+\newcommand{\polylog}[1][\secpar]{\mathsf{polylog}(#1)}
+
+\newcommand{\indrsidcpa}{\mathrm{IND\$}\mhyphen\mathrm{sID}\mhyphen\mathrm{CPA}}
+%\newcommand{\oplus}{\, \texttt{XOR} \,} % shorthand for typing the XOR operator in mathmode
+
+
+% CommitTx
+\newcommand{\amnt}{\mathsf{amnt}}
+\newcommand{\ac}{\mathsf{ac}}
+\newcommand{\accd}{\mathsf{accd}}
+\newcommand{\ssk}{\mathsf{ssk}}
+\newcommand{\tsk}{\mathsf{tsk}}
+\newcommand{\rsk}{\mathsf{rsk}}
+\newcommand{\tk}{\mathsf{tk}}
+\newcommand{\spk}{\mathsf{spk}}
+\newcommand{\tpk}{\mathsf{tpk}}
+\newcommand{\rpk}{\mathsf{rpk}}
+\renewcommand{\pk}{\mathsf{pk}}
+\renewcommand{\sk}{\mathsf{sk}}
+\renewcommand{\time}{\mathsf{time}}
+\newcommand{\tout}{\mathsf{tout}}
+\newcommand{\parse}{\mathbf{parse} \:}
+\newcommand{\vft}{\mathsf{vft}}
+\newcommand{\atype}{\mathsf{atype}}
+\newcommand{\expired}{e}
+\renewcommand{\pp}{\mathsf{pp}}
+\newcommand{\bca}{\mathbb{A}}
+\newcommand{\bcb}{\mathbb{B}}
+\newcommand{\pki}{\pk_{\mathsf{i}}}
+\newcommand{\ski}{\sk_{\mathsf{i}}}
+\newcommand{\pkm}{\pk_{\mathsf{m}}}
+\newcommand{\skm}{\sk_{\mathsf{m}}}
+\newcommand{\pkc}{\pk_{\mathsf{c}}}
+\newcommand{\skc}{\sk_{\mathsf{c}}}
+\newcommand{\pkr}{\pk_{\mathsf{r}}}
+\newcommand{\skr}{\sk_{\mathsf{r}}}
+\newcommand{\pks}{\pk_{\mathsf{s}}}
+\newcommand{\sks}{\sk_{\mathsf{s}}}
+%\newcommand{\tx}{\mathsf{tx}}
+%\newcommand{\st}{\mathsf{st}}
+\errorcontextlines=10

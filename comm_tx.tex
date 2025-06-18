@@ -1,0 +1,171 @@
+% TeX root = atomic-swaps.tex
+
+\section{Commit Transactions and Atomic Swaps}
+
+\subsection{Commit Transactions}
+The commit transaction primitive offers a lightweight and expressive mechanism for implementing conditional, time-sensitive asset transfers directly on-chain, without requiring a general-purpose scripting environment. This functionality enables users to lock funds under epoch-dependent spending conditions, supporting contract patterns such as atomic swaps, escrows, and delayed claims—all of which rely on time-based control over asset ownership. \\
+We note that providing a fully universal definition of a commit transaction primitive is challenging due to the diversity of transaction models across blockchain systems. In particular, fundamental differences between UTXO-based (e.g., Bitcoin, MimbleWimble) and account-based (e.g., Ethereum, ZCash Sapling) systems lead to distinct transaction semantics and interface requirements. As a result, a single formalization of commit transactions that universaly applies to all transaction schemes would either be overly abstract or would need to be tailored closely to each specific model. Nevertheless, the underlying concept of commit transactions - namely, timeout conditional asset ownership — remains simple and expressive. In practice, this functionality can be readily instantiated in various ledger models with modest modifications to fit the specifics of the transaction scheme and primitives in use. \vspace{0.3em} \\
+The functionality of a commit transaction can be logically divided into two phases: Commit Phase and Reveal Phase, described as follows: \\
+\textbf{Commit Phase}: The user locks a given amount of coins into a special account defined by a commitment to:
+    \begin{itemize}
+        \item A main secret key $\mathsf{sk}_0$
+	\item A set of auxiliary secret keys $\mathsf{sk}_1, \dots, \mathsf{sk}_k$
+	\item Two (or more) index sets $I_0, I_1 \subseteq [k]$ which define the required authorized key combinations for spending the funds
+	\item A time threshold $T$, denoting an epoch after which the ownership of the accounts transitions.
+    \end{itemize}
+\textbf{Reveal Phase}: Depending on whether a transaction is issued before or after the epoch threshold $T$, different subsets of auxiliary keys are required:
+\begin{itemize}
+    \item Before time $T$: The account can be spent using $\mathsf{sk}_0$ and the auxiliary keys indexed by $I_0$
+    \item After time $T$: The spending requires $\mathsf{sk}_0$ and keys indexed by $I_1$
+\end{itemize}
+This time-dependent control structure enables the definition of disjoint execution paths, ensuring that only authorized parties can redeem the funds within their designated time windows. For example, in an atomic swap protocol, one party may claim the funds by providing the required keys before a deadline, while the other party regains control if the swap fails and the deadline elapses.
+
+\subsection{Commit-Transaction-based Atomic Swaps}
+In this section we construct a protocol that realizes atomic swaps on a generic blockchain interface supporting commit transactions.
+
+\begin{todobox}
+\begin{itemize}
+\item motivate use of this blockchain definition instead of UC-style functionality
+\item explain how to set $T_0$, $T_1$ with respect of confirmation time
+\end{itemize}
+\end{todobox}
+
+\subsubsection{Blockchain syntax}
+\begin{definition} A blockchain system supporting confidential transactions is defined by the following sets of the algorithms \[(\mathsf{TxPub}, \mathsf{TxGen}, \mathsf{CommitTx}, \mathsf{TxVf}, \mathsf{GetState}, \mathsf{TimeExt})\]
+\begin{itemize}[topsep=0pt, itemsep=0pt, leftmargin=2em]
+    \item $\mathbf{0/1} \gets \mathbf{TxPub}(\tx)$: publishes the transaction $\tx$ on the blockchain. Outputs 1 if the transaction is accepted, 0 otherwise.
+    \item $\mathbf{tx}  \gets \mathbf{TxGen}(\st, \{ \pk_i, \sk_i \}_{i \in \mathsf{SC}}, \pk_\mathsf{TG}, \amnt)$: generates a signed transaction transferring an amount $\amnt$ from a source account associated to the keypairs in the set $\mathsf{SC} = \{\pk_i, \sk_i \}_{i \in \mathsf{SC}}$ to the target public key $\pk_\mathsf{TG}$, based on the current state $\st$.
+    \item $\mathbf{tx} \gets \mathbf{CommitTx}(\st,  \{ \pk_i, \sk_i \}_{i \in \mathsf{SC}}, \mathsf{pk}_\mathsf{TG}, \{ \pk_i \}_{i \in I_0}, \{ \pk_i \}_{i \in I_11}, T, \amnt)$: produces a commit transaction transferring $\amnt$ from a source account associated to the keypairs in the set $\mathsf{SC} = \{\pk_i, \sk_i \}_{i \in \mathsf{SC}}$  to a commit-type account defined by a main public key $\pk_\mathsf{TG}$, auxiliary key sets $I_0 = \{ \pk_i \}_{i \in I_0}$ and $I_1 = \{ \pk_i \}_{i \in I_1}$, and a timeout parameter $T$.
+    \item $\mathbf{0/1} \gets \mathbf{TxVf}(\st, \tx)$: Verifies whether a transaction $\tx$ is valid under the given blockchain state $\st$ and its encoded epoch, which may be extracted using $\mathsf{TimeExt}$. If the source account of the transaction is a commit-type account, it requires that the secret keys corresponding to $\pk_T$ and either one of the auxiliary sets, $\{ \pk_i \}_{i \in I_0}$ or  $I_1 = \{ \pk_i \}_{i \in I_1}$ are included in the set $\mathsf{SC}$ based on defined timeout $T$. Returns 1 if the transaction is valid, 0 otherwise.
+    \item $\mathsf{st} \gets \mathbf{GetState}$: Returns the current state $\mathsf{st}$ from the global system state (consensus), including account records, verified transactions, and the current epoch.
+    \item $\mathsf{time} \gets \mathbf{TimeExt}$: extracts the epoch from the state.
+\end{itemize}
+\end{definition}
+\subsubsection{Construction}
+\paragraph*{Notation.} In order to encode the concurrent execution of routines in an asynchronous setting, we use the following notation in the protocol's pseudocode definition.
+\begin{itemize}[nosep, noitemsep]
+    \item $\mathbf{wait} \:\: \mathsf{fn}(...)$ - Suspends execution until the execution of the algoritm $\mathsf{fn}(...)$ terminates. If $\mathsf{fn}(...)$ returns $\perp$, the current execution block aborts and returns $\perp$.
+    \item $\mathbf{wait} \: \{...\}$ - Enforces the $\mathbf{wait}$ operation to all asynchonous routines inside the execution block.
+    \item $\mathbf{assert} \: \{...\}$ - Verifies that enclosed expression or routine returns 1. If not, the current block terminates and returns $\perp$.
+    \item $\mathbf{select} \: \{...\}$ - Concurrently runs multiple asynchronous $\mathbf{wait}$ routines in the block and returns the value of the first routine that completes successfully.
+\end{itemize}
+All routines that interact with network channels—such as accessing the blockchain interface or executing a two-party computation (2PC) with another participant—are treated as asynchronous. This reflects the fact that such operations may incur unpredictable delays and cannot be assumed to complete within a fixed timeframe. \\
+In the protocol specification, variables and routines that are specific to a particular blockchain $\mathbb{B}$ are annotated with a subscript to distinguish their context, unless otherwise clear. For example, a public key belonging to chain $\mathbb{B}$ is denoted by $\mathsf{pk_{(\mathbb{B})}}$. \\
+Parties may communicate over an unreliable and unauthenticated channel, with no assumptions regarding security or message delivery guarantees. Communication is modeled using the primitives $\mathsf{send}$ and $\mathsf{receive}$, which respectively transmit and await data over the channel.
+\paragraph*{Setup.} Let $\mathbb{A}$ and $\mathbb{B}$ denote two blockchains that support confidential constructions, as defined previously. Consider two parties, $P_0$ and $P_1$, who wish to perform a cross-chain asset exchange: $P_0$ aims to swap $\amnt_\mathbb{A}$ units of currency on $\mathbb{A}$ in exchange for $\amnt_\mathbb{B}$ units on $\mathbb{B}$ from $P_1$, and vice versa. \\
+Each party generates keypairs for both chains. Specifically, $P_0$ generates $(\pk_i, \sk_i)$ on chain $\mathbb{A}$ and $(\pk_s, \sk_s)$ on chain $\mathbb{B}$, while $P_1$ generates $(\pk_i, \sk_i)$ on $\mathbb{B}$ and $(\pk_s, \sk_s)$ on $\mathbb{A}$. \\
+The parties agree on a common set of global parameters: timeouts $T_0$ and $T_1$, and transfer amounts $\amnt_\mathbb{A}$ and $\amnt_\mathbb{B}$. Given this setup, both parties proceed to execute the protocol described in \cref{generic_atomic_protocol}, using the global parameters as public input and their respective keypairs as private input.
+\paragraph*{Key generation and commit phase.} 
+Each party begins by generating three cryptographic key pairs, each serving a distinct role in the protocol. The pair $(\sk_m, \pk_m)$ is designated as the main keypair, associated with the control of a commit-type account that will eventually hold the locked assets. The second pair, $(\sk_r, \pk_r)$ functions as a recovery keypair, enabling the party to reclaim funds in case the protocol fails to complete within the allotted timeout. The third pair, $(\sk_c, \pk_c)$ is the commitment keypair, which is owned by the respective counterparty in order to allow for a joint ownership of the commit account. Party $P_0$ generates its main and recovery keypairs on blockchain $\mathbb{B}$. Party $P_1$ follows the symmetric strategy: it generates its main and recovery keypairs on blockchain $\mathbb{B}$, and its commitment keypair on blockchain $\mathbb{A}$. Following key generation, the parties exchange their respective public commitment keys over an off-chain channel. \\
+Using this setup, $P_0$ locally executes, with respect to chain $\mathbb{A}$ \[\mathsf{CommitTx}(\st, \{ (\pki, \ski) \}, \pkm , \{ \pkc \}, \{ \pkr \}, T_0, \amnt)\], where $(\pki, \ski)$ is the party's source keypair, $\amnt$ is the amount to be exchanged with respect to $\mathbb{A}$, $T_0$ is the agreed timeout parameter, $\pkm$ and $\pkr$ are the main and recovery public key, and $\pkc$ is the commitment public key received by the counterparty. $P_1$ then symmetrically executes $\mathsf{CommitTx}$ with respect to chain $\mathbb{B}$ and using timeout $T_1$, and both parties publish the transactions $\mathsf{tx}_r$ through the $\mathbf{TxPub}$.
+\paragraph*{Swap and  refund phase.}
+The parties now proceed to concurrently write two routines corresponding to the swap and refund mechanism. The refund routine checks whether $T_0$ or $T_1$ (respectively for $P_0$ and $P_1$ are timed out, and if so generate and publish the refund transaction using the master and recovery key pair as source $\mathsf{SC} := \{ (\pkm, \skm), (\pkr, \skr) \}$ paying back $\amnt$ to $\pki$. \\
+The swap routine send the previously published transactions initialized the commit accounts $\mathsf{tx}_r$ to the respective counterparty, and they both verify that the transactions are valid through the algorithm $\mathsf{TxVf}$ and that the the $\pkc$ and $\amnt$ are set correctly. The parties now proceed to run the 2PC protocol $\Gamma_\mathsf{Swap}$ as defined in \cref{generic_2pc}. 
+After publishing the commit transactions, both parties proceed to concurrently execute two protocol routines that implement the refund and swap mechanisms. These routines are designed to ensure liveness and atomicity of the asset exchange in the presence of network delays or adversarial behavior.
+The refund routine serves as a timeout-based recovery path. Each party locally monitors the blockchain state and checks whether the corresponding timeout parameter  or  has expired. Upon detecting a timeout, the party generates and publishes a refund transaction using its main and recovery keypairs as signing authorities, i.e., it sets as source keypairs $\mathsf{SC} := \{ (\pkm, \skm), (\pkr, \skr) \}$. This transaction transfers the originally committed amount $\amnt$ back to the inital public key pair $\pk_i$, ensuring that funds are reclaimed securely if the protocol fails to complete. \\
+In parallel, each party initiates the swap routine, which coordinates the completion of the atomic asset exchange. The parties begin by sending the previously published commit transactions $\tx_r$, which initialize the commit-type accounts, to their respective counterparties over an off-chain channel. Upon receipt, each party verifies the validity of the received transaction using the verification algorithm. Additionally, they confirm that the embedded commitment public key $\pkc$ and the committed amount $\amnt$ match the expected values agreed upon during setup. If the validation succeeds, the parties then execute the two-party computation protocol $\Gamma_{\mathsf{Swap}}$, as defined in \cref{generic_2pc}. The 2PC protocol $\Gamma_{\mathsf{Swap}}$ carries out a secure joint computation between the two parties to generate the swap transactions that transfer assets from the respective commit-type accounts to the target settlement public keys $\pk_s$ on the respective chains.
+As part of its execution, the protocol verifies the correctness and consistency of each party’s inputs—namely, their key material, local state views, and agreed transfer amounts—before proceeding with transaction construction.
+To enforce atomicity, the protocol introduces a commitment mechanism that prevents either party from unilaterally finalizing the swap. Specifically, it constructs a cryptographic lock by computing \[\mathsf{lk} := \mathcal{H}(\tx_{s, \bcb}) \oplus  \tx_{\mathsf{s}, \bca}\], where  $\tx_{s,\bcb}$ and $\tx_{s,\bca}$ are the swap transactions of parties $P_0$ and $P_1$. Here, $\mathcal{H}(\cdot)$ denotes a cryptographic hash function, and $\oplus$ indicates bitwise exclusive-or. The result is a binding encoding that ties the two transactions together such that the publication of one enables the recovery of the other. Finally,  $\Gamma_{\mathsf{Swap}}$ outputs the lock $\mathsf{lk}$ to party $P_1$ and the transaction $\tx_{s,\bcb}$ to party $P_0$.
+Upon receiving $\tx_{s,\bcb}$, party $P_0$ proceeds to publish the transaction directly on the target chain $\tx_{s,\bcb}$. Meanwhile, the counterparty $P_1$ enters a monitoring phase, during which it continuously polls the state of chain $\bcb$ to detect the appearence of the expected swap transaction $\tx_{s,\bcb}$. \\
+Once $\tx_{s,\bcb}$ is observed on-chain, $P_1$ leverages the leverages the previously received lock value $\mathsf{lk}$ to recover the corresponding transaction swap by computing $\tx_{s, \bca} := \mathsf{lk} \oplus \mathcal{H}(\tx_{s,\bcb})$, which may now be published to complete complete the swap. \\
+The use of the XOR-locked encoding guarantees that $P_1$ can finalize its transaction only after observing the publication of $P_0$'s transaction on $\bcb$. \\
+This mechanism enforces a strict dependency between the two on-chain actions, thereby preserving the atomicity of the swap.
+Furthermore, the protocol is resilient to failures or delays during the swap phase. If any assertion fails, any subroutine returns an error, or any asynchronous operation stalls indefinitely—such as unresponsiveness from a counterparty or delay in transaction propagation—each party is programmed to invoke the refund mechanism once the respective timeout $T_0$ or $T_1$ elapses. This design guarantees that, even in the presence of faults or adversarial behavior, no party suffers financial loss, and the protocol atomicity is mantained.
+
+\begin{figure}[H]
+    \begin{pchstack}[center, boxed]
+    \pseudocode{
+	    P_0((\pkm, \skm)_\bca,  (\pkc, \skc)_\bcb, \mathsf{\pk_{\mathsf{s}, \bcb}}) \qquad \qquad P_1((\pkm, \skm)_\bcb,  (\pkc, \skc)_\bca, \mathsf{\pk_{\mathsf{s}, \bca}}) \\[0.1\baselineskip ][\hline] 
+        \<\< \\[-0.4\baselineskip ]
+	\mathbf{assert} \: (\st_\bcb, \st_\bca, \amnt_\bcb,  \amnt_\bca)^0 = (\st_\bcb, \st_\bca, \amnt_\bcb,  \amnt_\bca)^1 \\
+	\tx_{\mathsf{s}, \bcb} := \mathsf{TxGen_\bcb}(\st, \{ (\pkm^1, \skm^1), (\pkc^0, \skc^0) \}, \pks^0, \amnt) \\
+	\mathbf{assert} \: \mathsf{TxVf}_\bcb(\st, \tx_{\mathsf{s}}) \\
+	\tx_{\mathsf{s}, \bca} := \mathsf{TxGen_\bca}(\st, \{ (\pkm^0, \skm^0), (\pkc^1, \skc^1) \}, \pks^1, \amnt) \\
+	\mathbf{assert} \: \mathsf{TxVf}_\bca(\st, \tx_{\mathsf{s}}) \\
+	\mathsf{lk} := \mathcal{H}(\tx_{\mathsf{s}, \bcb}) \oplus \tx_{\mathsf{s}, \bca} \\
+        \mathbf{output} \: \mathsf{lk} \: \mathbf{to} \: P_1 \\
+        \mathbf{output} \: \tx_{\mathsf{s}, \bcb} \: \mathbf{to} \: P_0
+    }
+    \end{pchstack}
+    \caption{Protocol definition of 2PC $\Gamma_{\mathsf{CommitTx}}$}
+    \label{fig:generic_2pc}
+    \end{figure}
+    \begin{figure}[H]
+    \begin{minipage}[t]{0.5\textwidth}
+    \begin{pchstack}[boxed]
+    \pseudocode{
+	\text{Party input} \:\: (\pki, \ski)_{\bca}, (\pks, \sks)_{\bcb} \\[0.1\baselineskip ][\hline]
+	(\skm, \pkm)^0 \gets \mathsf{KGen}_\bca(\pp) \\
+	(\skr, \pkr)^0 \gets \mathsf{KGen}_\bca(\pp) \\
+	(\skc, \pkc)^0 \gets \mathsf{KGen}_\bcb(\pp) \\
+	\mathsf{send}(\pk_{\mathsf{c}, \bcb}^0) \\
+	\pk_{\mathsf{c}, \bca}^1 \gets \mathsf{receive} \\
+	\tx_{\mathsf{r}, \bca} \gets \mathsf{CommitTx}_\bca(\st, \{ (\pki, \ski)^0 \}, \pkm^0, \{ \pkc^1 \}, \{ \pkr^1 \}, T_0, \amnt) \\
+	\mathsf{TxPub}_\bca(\tx_\mathsf{r}) \\
+        \mathsf{\textbf{select}} \: \{ \\
+        \quad \mathsf{\textbf{wait}} \: \{ \\
+	\qquad \textbf{do} \: \st \gets \mathsf{GetState}_\bca \\ 
+	\qquad \textbf{while} \: \mathsf{TimeExt}_\bca(\st) < T_0 \\
+	\qquad \tx_{\mathsf{r}} \gets \mathsf{TxGen_\bca}(\st, \{ (\pkm, \skm)^0, (\pkr, \skr)^0 \}, \pki^0, \amnt) \\
+	\qquad \mathsf{TxPub}_\bca(\tx_{\mathsf{r}}) \\
+        \quad \} \\
+        \quad \mathsf{\textbf{wait}} \:\: \{ \\
+	\qquad \mathsf{send}(\tx_{\mathsf{r}, \bca}) \\
+	\qquad \mathsf{tx_{\mathsf{r}, \bcb}} \gets \mathsf{receive} \\
+	\qquad \textbf{assert} \: \mathsf{TxVf}_\bcb(\mathsf{tx}_\bcb) \\
+	\qquad \textbf{assert} \: (\pk_{\mathsf{c}, \bcb}^0, \amnt_\bcb) \in \mathsf{tx_{\mathsf{r}, \bcb}} \\
+	\qquad \tx_{\mathsf{s}, \bcb} \gets \Gamma.\mathsf{Swap}(\mathsf{\pk_{\mathsf{m}, \bca}^0}, \pk_{\mathsf{r}, \bca}^0, \pk_{\mathsf{c}, \bcb}^0) \\
+	\qquad \textbf{assert} \: \mathsf{TxPub}_\bcb(\tx_{\mathsf{s}}) \\
+        \quad \} \\
+        \} \\
+    }
+    \end{pchstack}
+    \end{minipage}%
+    \hspace{0.7cm}
+    \begin{minipage}[t]{0.5\textwidth}
+    \begin{pchstack}[boxed]
+    \pseudocode{
+	\text{Party input} \:\: (\pki, \ski)_{\bcb}, (\pks, \sks)_{\bca} \\[0.1\baselineskip ][\hline] 
+	(\skm, \pkm)^1,  \gets \mathsf{KGen}_\bcb(\pp) \\
+	(\skr, \pkr)^1 \gets \mathsf{KGen}_\bcb(\pp) \\
+	(\skc, \pkc)^1\gets \mathsf{KGen}_\bca(\pp) \\
+	\mathsf{send}(\pk_{\mathsf{c}, \bca}^1) \\
+	\pk_{\mathsf{c}, \bcb}^0 \gets \mathsf{receive} \\
+	\tx_\bcb \gets \mathsf{CommitTx}_\bcb(\st,  \{ (\pki, \ski)^1 \}, \pkm^1 , \{ \pkc^0 \}, \{ \pkr^1 \}, T_1, \amnt) \\
+	\mathsf{TxPub}_\bcb(\tx_\bcb) \\
+        \mathsf{\textbf{select}} \: \{ \\
+        \quad \mathsf{\textbf{wait}} \: \{ \\
+	\qquad \textbf{do} \: \st \gets \mathsf{GetState}_\bcb \\ 
+	\qquad \textbf{while} \: \mathsf{TimeExt}_\bcb(\st) < T_1 \\
+	\qquad \tx_{\mathsf{r}} \gets \mathsf{TxGen_\bcb}(\st, \{ (\pkm, \skm)^1, (\pkr, \skc)^1 \}, \pki^1, \amnt) \\
+	\qquad \mathsf{TxPub}_\bcb(\tx_{\mathsf{r}}) \\
+        \quad \} \\
+        \quad \mathsf{\textbf{wait}} \:\: \{ \\
+	\qquad \mathsf{send}(\tx_{\mathsf{r}, \bcb}) \\
+	\qquad \mathsf{tx_{\mathsf{r}, \bca}} \gets \mathsf{receive} \\
+	\qquad \textbf{assert} \: \mathsf{TxVf}_\bca(\mathsf{tx}_\mathsf{r}) \\
+	\qquad \textbf{assert} \: (\pk_{\mathsf{c}, \bca}^1\, \amnt_\bca) \in \mathsf{tx_{\mathsf{r}, \bca}} \\
+	\qquad \mathsf{lk} \gets \Gamma.\mathsf{Swap}(\mathsf{\pk_{\mathsf{m}, \bcb}^1}, \pk_{\mathsf{r}, \bcb}^1, \pk_{\mathsf{c}, \bca}^1) \\
+	\qquad \textbf{do} \: \st \gets \mathsf{GetState}_\bcb \\
+	\qquad \textbf{while} \: \not\exists \: \mathsf{tx} \in \st \mid (\pk_{\mathsf{c}, \bcb}^1, \pk_{\mathsf{m}, \bcb}^0) \in \mathsf{tx} \\
+	\qquad \tx_{\mathsf{s}, \bcb} := \mathsf{tx} \in \st \mid (\pk_{\mathsf{c}, \bcb}^1, \pk_{\mathsf{m}, \bcb}^0) \in \mathsf{tx} \\
+	\qquad \tx_{\mathsf{s}, \bca} := \mathsf{lk} \oplus  \tx_{\mathsf{s}, \bcb} \\
+	\qquad \textbf{assert} \: \mathsf{TxPub}_\bca(\tx_{\mathsf{s}}) \\
+        \quad \} \\
+        \} \\
+    }
+    \end{pchstack}
+    \end{minipage}%
+    \caption{Full protocol execution for $P_0$ and $P_1$, respectively left and right}
+    \label{fig:generic_atomic_protocol}
+    \end{figure}
+
+\subsection{Comparison with HTLC-based Atomic Swaps}
+\begin{todobox}
+\begin{itemize}
+\item Why chains might want to support commit transactions but not "hash time lock contracts (HTLC)"? 
+\item Commit transaction is local functionality, cannot be directly compare
+\end{itemize}
+\end{todobox}
+
+\newpage

@@ -1,0 +1,30 @@
+## Core latex/pdflatex auxiliary files:
+*.aux
+*.lof
+*.log
+*.lgpl
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+## Intermediate documents:
+*.dvi
+*.xdv
+*-converted-to.*
+*.bbl
+*.blg
+*.run.xml
+# these rules might exclude image files for figures etc.
+# *.ps
+# *.eps
+# *.pdf
+*.fdb_latexmk
+*.synctex.gz
+/atomic-swaps.pdf
+*.bcf
+/crosschain-dex.pdf

@@ -1,0 +1,53 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+
+\begin{document}
+
+\section{Current Status on DEX project}
+
+\subsection{Main DEX Flow}
+
+Performing exchanges between client $C$ who wants to exchange tokens from ledger $L_a$ held at their address $\text{Addr}_{C}^{a}$ with tokens from pool who holds tokens in ledger $L_b$ at address $\text{Addr}_{pool}^{b}$ (AMMs peer-to-pool method)
+
+This is a recap of our discussions so far, based on what I’ve been able to gather. Please feel free to correct any inaccuracies or missing thoughts. The approach is generic and currently follows the same blueprint as the ACNS'21 paper (just as a starting point for now)
+
+
+\begin{enumerate}
+    \item \textbf{Burner address setup:} The servers set up pool addresses $\text{Addr}_{pool}^a$ and $\text{Addr}_{pool}^b$ on each ledger $L_a$ and $L_b$ from which they can transfer assets only if they all cooperate in threshold signing.
+    \item \textbf{order placement:} $C$ transfer their tokens to pool addresses on ledger $\text{Addr}_{pool}^a$ and send to the servers the addresses $\text{Addr}_C^{b}$ on $L_b$ where they will receive exchanged token. 
+    % They also send secret shared order information, describing the prices they charge for their tokens in a way that the servers do not learn the prices.
+    \item \textbf{Confirmation:} If the servers have correctly received the deposits from the client, they proceed. Otherwise, they generate refund transactions transferring tokens from $\text{Addr}_{pool}^{a}$ back to client address $\text{Addr}_C^{a}$. $C$ retrieve these transactions and post them to $L_a$.
+    % \item \textbf{Private Matching:} The servers execute a publicly verifiable MPC protocol (e.g., [7]) to run any order matching algorithm on secret-shared orders so that they can publicly prove that either a given set of orders have been matched or that a server has cheated, never learning non-matched orders.
+    \item \textbf{Pay out:} Servers publish signed transactions for the final exchange operations to addresses $\text{Addr}_C^{b}$ on $L_b$. If the servers are charging a fee for the exchange, they can similarly post transactions matching their fees from $\text{Addr}_C^{a}$ to their accounts on $L_a$.
+\end{enumerate}
+
+% \section*{Cheating Recovery: The main cheating scenario is that a server sent an invalid message or failed to send a message. In that case, an honest server complains to the smart contract on $L_{ex}$, and all servers have to send valid protocol messages to complete the protocol to the smart contract. If a server $P_i$ does not send a valid message, it is identified as a cheater. Servers double spent the client $C$'s deposit: $C$ sends the proof of double spending to the smart contract on $L_{ex}$, identifying all servers as cheaters. If the proof is valid, the servers are identified as cheaters.}
+
+
+While the solution is generic, to ensure compatibility with Monero, this work proposes the following technical contribution:
+
+\medskip
+
+\noindent \textbf{{Threshold RingCT}} The approach is to thresholdize the tag in RingCT. I am now reading Russell's thesis to understand the technical details on this.
+\begin{itemize}
+    \item Construct tag from a \textbf{distributed PRF}.
+    \item Generate aggregated proof for proving that the partial PRFs and partial key pairs are consistent.
+   \end{itemize}
+
+\noindent \textbf{Discussions and remarks}
+\begin{enumerate}
+    \item {We consider private AMM and mempool privacy out of scope.}
+    \item Any number of ledgers can be involved, as long as all parties can use a standard smart contract (e.g., Ethereum) on a ledger $L_{Ex}$.
+    \item In this protocol, there is no timelock assumption, in contrast to atomic swap protocols, which additionally require a timelock script.
+    \item Smart contract only gets in the loop if there is malicious activity from one of the committee members (servers). This is also the claim in the P2DEX paper, but there is a discussion referring to this P2DEX paper in Universal Atomic Swaps which I quote here: "Migration protocols like cryptocurrency-backed assets or side-chains, mimic the atomic swap functionality by requiring that Alice and Bob migrate their assets from (perhaps language-restricted) ledgers $\mathbb{B}_A$ and $\mathbb{B}_B$ into $\mathbb{B}_C$ with a more expressive scripting language (like Ethereum) [10]. Once the funds are in $\mathbb{B}_C$, they are swapped and sent back to the initial ledgers $\mathbb{B}_A$ and $\mathbb{B}_B$. Such an approach has the following drawbacks: (i) the swap protocol imposes transaction and cost overhead not only to $\mathbb{B}_A$ and $\mathbb{B}_B$ but also $\mathbb{B}_C$; and (ii) it is not an universal solution as it potentially requires a different asset migration as well as atomic swap protocols for each ledger that plays the role of $\mathbb{B}_C$ in the aforementioned example. Even in the unlikely case that everybody agrees to use $\mathbb{B}_C$ for their atomic swaps, we need to enhance every blockchain with the capability of migrating assets to/from $\mathbb{B}_C$."
+    \textit{This is contrary to what is claimed in P2DEX, and by looking into the paper, I couldn't confirm the validity of the criticism above. In case it is valid, our approach might have this additional advantage over P2DEX.}
+    \item Question/thinking out loudly: Are \textbf{accountable threshold signatures} beneficial in this setting, in the sense that the servers contributing to the final signature can be traced, and malicious behavior can be more easily identified?
+\end{enumerate}
+
+
+
+
+\end{document}

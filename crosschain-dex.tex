@@ -1,0 +1,113 @@
+\documentclass{article}      	% Style of the document                     
+\usepackage{fullpage}
+\usepackage{amsmath,amsthm}     	   	% Maths    
+\newtheorem{definition}{Definition}                                      
+\usepackage[utf8]{inputenc}	% UTF-8 characters                                               
+\usepackage[T1]{fontenc}    	% Tuki ääkkösille (Finnish names don't cause problems)                                            
+\usepackage{parskip}        		% Linebreak between paragraphs                
+\usepackage{svg}
+\usepackage{graphicx}       		% Graphics package for adding figures                        
+\usepackage{epstopdf}       		% Possibility to add *.eps figures
+\usepackage{ dsfont }            % Symbol for real numbers
+\usepackage{extarrows}
+\usepackage{float}
+\usepackage{makeidx}
+\usepackage{enumitem}        % possibility to label list items by alphabet
+\newcommand{\M}[1]{\ensuremath{\text{\texttt{#1}}}}
+\usepackage[
+    lambda,
+    operators,
+    advantage,
+    sets,
+    adversary,
+    landau,
+    probability,
+    notions,
+    logic,
+    ff,
+    mm,
+    primitives,
+    events,
+    complexity,
+    asymptotics,
+    keys]{cryptocode}
+
+% \usepackage{todonotes}
+\usepackage{tcolorbox}
+
+\usepackage{amsmath,amsfonts,graphicx,amssymb,amsthm}
+
+
+\usepackage[bookmarksdepth=2,draft=false]{hyperref}
+\hypersetup{colorlinks=true,linkcolor={red!50!black},citecolor=darkgray,linkcolor=darkgray}
+\usepackage[capitalize]{cleveref}
+
+\usepackage[draft]{comments-bugs-todos}
+
+\input{macro}
+
+
+
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing}
+\usetikzlibrary{decorations.pathmorphing}
+
+
+\definecolor{cgreen}{RGB}{0, 153, 51}
+\definecolor{cblue}{RGB}{0, 102, 204}
+\definecolor{cyellow}{RGB}{255, 204, 0} 
+\definecolor{cred}{RGB}{204, 51, 0} 
+
+\newtcolorbox{todobox}{colback=yellow!3!white, colframe=white!75!black}
+
+\newcommand{\commentline}[2]{%
+    \tikz[remember picture, overlay]{
+        \node [black,anchor=west,xshift=10pt] at (#1) {#2};
+    }
+}
+
+\newcommand{\blockcomment}[3]{%
+    \tikz[remember picture, overlay]{
+        \draw [decorate,decoration={lineto,amplitude=10pt,mirror,raise=4pt},yshift=0pt,very thick,{#3}] 
+        (#1) -- (#2) node [black,midway,xshift=10pt] {};
+    }
+}
+
+
+
+\usepackage{biblatex}
+\addbibresource{references.bib}
+
+\begin{document}         
+\author{Lorenzo Tucci}
+\title{RingCCT: confidential commit transactions and atomic swaps}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+
+\begin{todobox}
+\textbf{Narrative}
+\begin{itemize}
+\item Universal atomic swaps allow atomic swaps across arbitrary pairs of chains which support ordinary transactions, in particular without requiring support of scripting, time-lock contracts, etc.
+\item This is appealing because most privacy chains (e.g. ZCash, Monero, MimbleWimble) do not support scripting.
+\item However, UAS requires both parties to solve TLPs, which are computationally intensive especially for lightweight clients.
+\item Moreover, it is tricky from an implementation perspective to properly set the difficulty level TLPs in UAS. For example, we identify a minor flaw ... and propose a fix.
+\end{itemize}
+
+\textbf{Contributions}
+\begin{itemize}
+\item We identify that a minimal chain functionality -- commit transactions -- suffices for achieving atomic swaps. Concretely, we propose a generic construction of an atomic swap protocol using only commit transactions and other basic functionalities of the chains. (To avoid dealing with UC, maybe we write this as an informal theorem?)
+\item We propose an extension of RingCT, the underlying transaction scheme of Monero, which allows to realise commit transactions in privacy-preserving cryptocurrencies. We propose a generic construction and show how to efficiently instantiate it over groups where discrete logarithm and other related problems are hard. 
+\item We provide a prototype implementation of CommitTx-based atomic swaps
+\end{itemize}
+\end{todobox}
+
+\input{intro}
+\input{prelim}
+\input{atomic_swap_overview}
+\input{comm_tx}
+\input{ringcct}
+\input{experiments}

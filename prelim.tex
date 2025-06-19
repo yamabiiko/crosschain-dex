@@ -1,0 +1,37 @@
+% TeX root = atomic-swaps.tex
+
+\section{Preliminaries}
+
+\begin{todobox}
+    General notation, e.g. security parameter, $[n]$, PPT, negligible, ...
+\end{todobox}
+
+\subsection{Basic primitives}
+
+\begin{todobox}
+    commitments, ZKP, ...
+\end{todobox}
+\subsection{Non-Interactive Zero Knowledge Proofs}
+
+Let $R: \{0, 1\}^* \times \{0, 1\}^* \rightarrow \{0, 1\}$ be a NP-witness-relation with corresponding NP-language $\mathcal{L} := \{x : \exists w \:\: \text{s.t.} \:\: R(x, w) = 1\}$
+
+A non-interactive zero-knowledge proof (NIZK) system for R consist of the following algorithms:
+\begin{itemize}
+    \item $\mathsf{cr} \gets \mathsf{ZK}_\mathcal{L}.\mathsf{Setup}(1^\lambda)$ takes on input the security parameter, outputs a common reference string $\mathsf{crs}$
+    \item $\pi \gets \mathsf{ZK}_\mathcal{L}.\mathsf{Pr}(\mathsf{crs}, x, w)$ takes on input the reference string $\mathsf{crs}$, a statement $x$ and a witness $w$, outputs a proof $\pi$
+    \item $0/1 \gets \mathsf{ZK}_\mathcal{L}.\mathsf{Vr}(\mathsf{crs}, x,\pi)$ takes on input the reference string $\mathsf{crs}$, a statement $x$ and a proof $\pi$. Outputs 1 if $w$ is a witness for the statment $x$, 0 otherwise.
+\end{itemize}
+We require a NIZK system to be \textit{zero-knowledge}, where the verifier does not learn more than the validity of the statement $x$, and \textit{simulation sound} where it is hard for any prover
+to convince a verifier of an invalid statement (chosen by the prover) even after having access to polynomially many simulated proofs for statements of his choosing.
+
+\subsection{Secure 2-Party Computation}
+A secure 2-party computa-tion (2PC) protocol allows two participating users $P_0$ and $P_1$ to securely compute some function $f$ over their private inputs $x_0$ and $x_1$ respectively.
+
+We require the standard $privacy$ property, which states that the only information learned by the parties in the computation is that specified by the function output.
+We also require the standard security with aborts, where the adversary can decide whether the honest party will receive the output of the computation or not, and thus there are no assumptions on fairness or guaranteed output delivery.
+
+\subsection{Computational Assumptions}
+
+\begin{todobox}
+    General setting of group-based crypto, implicit notation, assumptions that we need e.g. DLOG 
+\end{todobox}

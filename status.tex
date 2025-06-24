@@ -1,14 +1,6 @@
-\documentclass{article}
-\usepackage[utf8]{inputenc}
-\usepackage{amsmath}
-\usepackage{amssymb}
+\section*{Current Status and meeting notes}
 
-
-\begin{document}
-
-\section{Current Status on DEX project}
-
-\subsection{Main DEX Flow}
+\subsection*{Main DEX Flow}
 
 Performing exchanges between client $C$ who wants to exchange tokens from ledger $L_a$ held at their address $\text{Addr}_{C}^{a}$ with tokens from pool who holds tokens in ledger $L_b$ at address $\text{Addr}_{pool}^{b}$ (AMMs peer-to-pool method)
 
@@ -46,8 +38,3 @@ While the solution is generic, to ensure compatibility with Monero, this work pr
     \textit{This is contrary to what is claimed in P2DEX, and by looking into the paper, I couldn't confirm the validity of the criticism above. In case it is valid, our approach might have this additional advantage over P2DEX.}
     \item Question/thinking out loudly: Are \textbf{accountable threshold signatures} beneficial in this setting, in the sense that the servers contributing to the final signature can be traced, and malicious behavior can be more easily identified?
 \end{enumerate}
-
-
-
-
-\end{document}

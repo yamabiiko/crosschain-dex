@@ -10,33 +10,6 @@
 
 \paragraph{2PC}
 
-\begin{figure}[H]
-    \begin{pchstack}[center, boxed]
-    \pseudocode{
-    P_0(\mathsf{ssk^0_{\mathbb{A}}},\mathsf{spk^1_{\mathbb{B}}},\mathsf{tsk_{\mathbb{B}}}) \qquad \qquad P_1(\mathsf{ssk^0_{\mathbb{B}}},\mathsf{spk^1_{\mathbb{A}}},\mathsf{tx}) \\[0.1\baselineskip ][\hline] 
-        \<\< \\[-0.4\baselineskip ]
-	%\mathsf{spk}^1_{\mathbb{B}} = [\mathsf{ssk^1}_{\mathbb{B}] \\
-	%\mathsf{spk}^0_{\mathbb{A}} = [\mathsf{ssk^0}_{\mathbb{A}] \\
-    }
-    \end{pchstack}
-    \caption{Protocol definition of 2PC (RingCCT - public) $\Gamma_{\mathsf{CommitTx}}$}
-\end{figure}
-
-\begin{figure}[H]
-    \begin{pchstack}[center, boxed]
-    \pseudocode{
-        P_0(\mathsf{ssk^0_{\mathbb{A}}},\mathsf{rsk_{\mathbb{A}}},\mathsf{tsk_{\mathbb{B}}}) \qquad \qquad P_1(\mathsf{ssk_{\mathbb{B}}},\mathsf{rsk_{\mathbb{B}}},\mathsf{tsk_{\mathbb{A}}}) \\[0.1\baselineskip ][\hline] 
-        \<\< \\[-0.4\baselineskip ]
-    }
-    \end{pchstack}
-    \caption{Protocol definition of 2PC (RingCCT - RingCCT) $\Gamma_{\mathsf{CommitTx}}$}
-\end{figure}
-
-\begin{todobox}
-    Write down explicitly (i.e. in terms of $\GG$ and $\ZZ_q$ arithmetic) for which functionalities do we need 2PCs.     
-\end{todobox}
-
-
 \paragraph{Zero-Knowledge Proofs}
 
 \subsection{Performance Evaluation}

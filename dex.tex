@@ -2,9 +2,30 @@
 
 \section{Decentralized exchange}
 
+\paragraph*{Setting.} The system is composed by a set of liquidity providers $\mathcal{L}$ which deposit coins in so called \textit{liquidity pools}, where each pool $\mathcal{P}_i$ corresponds to assets from a different chain $\mathcal{B}_i$.  Clients $\mathcal{C}$ wanting to exchange tokens from a ledger $\mathbb{B}_a$ to another $\mathbb{B}_b$ can do so by initiating the protocol with the DEX system, transferring the assets $\mathsf{pk}_{\mathbb{B}_a}$ to the corresponding pool $\mathcal{P}_a$, and eventually receveing the corresponding assets from the matching pool $\mathcal{P}_b$ into their $\mathsf{pk}_{\mathbb{B}_b}$.
+
+\paragraph*{Smart contract setup.}
+In order to setup the protocol, the liquidity providers $\mathcal{L}$ run a pre-processing algorithm jointly executing a threshold signature scheme $\Pi.\mathsf{TDS}$ generate a jointly controlled public key pair $\mathsf{poolpk}_i$, $\mathsf{poolsk}_i$ for each chain $\mathbb{B}_i$.  
+Finally, they all deposit as a collateral $\mathsf{amnt}$ to the smart-contract address $\mathsf{scpk}$ on chain $\mathcal{B}_sc$.
+\paragraph*{Exchange}
+\begin{enumerate}
+\item Swaps are initiatized between the system and the client by exchanging signatures on the message $\mathsf{msg}_1 := ( \mathsf{cpk}_{\mathbb{B}_a}, \mathsf{cpk}_{\mathbb{B}_b}, \mathsf{amnt}_a, \mathsf{amnt}_b )$.
+\item Users proceed to swapping $\mathsf{amnt_a}$ to $\mathsf{P}_a$ and send the message $\mathsf{msg}_2 := ( \mathsf{tx}^{\mathsf{ex1}}_{\mathbb{B}_a}, \delta )$.
+\item The server verifies that the transaction has been confirmed with the correct amount, and then runs a threshold signature to sign  $\mathsf{tx}^{\mathsf{ex2}}_{\mathbb{B}_b}$. The transaction is either commited to beforehand or contains an unique identifier as additional data (or generate a new address from a master key pair in order to have "unique" transactions for each swap). 
+\item If the user does not receive a valid signature, they can request a refund on the smart contract by providing message $\mathsf{msg}_1$ and $\mathsf{msg}_2$ to the smart contract which proceeds to verify the signatures and the validity of the transaction in $\mathsf{msg}_2$. It then asks each liquidity provider that participated in the swap to provide a signature share of $\mathsf{tx}^{\mathsf{ex2}}_{\mathbb{B}_b}$. If the smart contract can retrieve the signature, it gives it to the user. Otherwise, it authorizes a refund using the staked assets of the cheating liquidity providers.
+Because poolers might collude with an user if the exchange rate is not fair (by agreeing on sharing the profit), poolers that did not sign the transaction must be able to contest the transaction exchage rate to the smart contract and refund (+ punishment fee?) the difference.
+\end{enumerate}
+\paragraph*{Withdrawal.}
+Liquidity providers must be able to withdraw from each pool their originally deposited assets plus the fees that they earned.  \\
+In order to withdraw their assets, poolers must be able to submit a withdrawal request to the network signed with their own key. They then create a transaction and request to threshold sign it, with other poolers aborting if the balance amount is incorrect. \\
+In case other poolers want to collude to prevent a party from withdrawing their funds, a pooler can force a refund in a similar fashion as in the exchange step, that is by providing the transaction to the smart contract, which will proceed to trigger a request of signature shares for the transaction. (We should be careful to prevent double refunds).
+In case other poolers want to collude with the withdrawer by signing a transaction where the balance is higher, the non-signing poolers should be able to trigger a refund / punishment from the staked balances.
+\paragraph*{Collateral.}
+Suppose the threshold signature requires $T$ signature shares out of $N$ parties. Then the minimum amount of collateral required to be staked in case of colluding poolers is $x \cdot \frac{N-T}{T}$, where $x$ is the amount of assets deposited for each secret key share.
+The maximum amount a single user can swap with the whole swap covered by a collateral is $x \cdot T-1$.
 \subsection{Syntax}
 \subsection{Correctness}
 \subsection{Security}
 \subsection{Construction}
 
-\newpage
+\newpage 

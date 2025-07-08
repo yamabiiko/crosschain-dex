@@ -3,8 +3,40 @@
 \section{Threshold RingCT transactions}
 
 \subsection{Syntax}
+\begin{definition}
+A threshold ring confidential transactions (\textsf{tRingCT}) scheme consists of the PPT algorithms
+\[
+\Omega^{(t,n)} = (\textsf{Setup}, \textsf{tKGen}, \textsf{tKDer}, \textsf{pTrans}, \textsf{Vf}, \textsf{StExt}, \textsf{TxExt}, \textsf{SrcChk}, \textsf{TgtChk})
+\]
+with the following interfaces:
+
+\begin{itemize}
+    \item $\mathsf{Setup}(1^\lambda) \rightarrow (\mathsf{pp}, \mathsf{st})$: Initializes the system by generating public parameters $\mathsf{pp}$ and an initial state $\mathsf{st}$, using the security parameter $\lambda$.
+
+    \item $\mathsf{tKGen}(\mathsf{pp}, n, t) \rightarrow \{(\mathsf{mpk}_j, \mathsf{msk}_j)\}_{j=1}^n$: Produces $n$ public/private key pairs distributed across $n$ participants, such that any subset of at least $t$ can jointly derive usable secrets. The result includes key shares $(\mathsf{mpk}_j, \mathsf{msk}_j)$ for each party.
+
+    \item $\mathsf{KDer}(\mathsf{msk}_j, \mathsf{tk}) \rightarrow (\mathsf{sk}_j, a)$: On input private key share $\mathsf{msk}_j, {i \in J}$ and a token $\mathsf{tk}$, party $P_j$ derives a secret key $\mathsf{sk}_j$ and corresponding amount $a$.
+
+    \item $\mathsf{pTrans}(\mathsf{st}, P, R, \mathcal{S}, \mathcal{T}) \rightarrow (\mathsf{tx}_j, \mathsf{TK})$: Constructs a transaction $\mathsf{tx}_j$ along with a set of target tokens $\mathsf{TK} = \{\mathsf{tk}_i\}_{i \in \mathcal{T}}$. It takes as input the current state $\mathsf{st}$, a policy predicate $P$ over amounts, a ring of anonymity set indices $R$, \textcolor{red}{a set of} source accounts information $\mathcal{S} = \{(\mathsf{sk}_i, a_i)\}$, and a target specification $\mathcal{T} = \{(\mathsf{mpk}'_i, a'_i)\}$.
+
+    \item $\mathsf{Combine}(\{\mathsf{tx}_j\}_{j \in J}, \mathsf{TK}) \rightarrow (\mathsf{tx}, \mathsf{TK})$:  This algorithm aggregates a set of partial transactions $\{\mathsf{tx}_j\}_{j \in J}$—generated independently by authorized parties—into a single valid transaction $\mathsf{tx}$. The input also includes the set of target tokens $\mathsf{TK}$, which are preserved or merged as needed in the final output. The resulting transaction $\mathsf{tx}$ must satisfy structural integrity and verification constraints as if it had been produced by a single-party execution of $\mathsf{Trans}$.
+
+
+    \item $\mathsf{Vf}(\mathsf{st}, \mathsf{tx}) \rightarrow (b, \mathsf{st}')$: Verifies the validity of the transaction $\mathsf{tx}$ with respect to the current state $\mathsf{st}$. If valid, returns $b = 1$ and an updated state $\mathsf{st}'$; otherwise returns $b = 0$.
+
+    \item $\mathsf{StExt}(\mathsf{st}) \rightarrow \mathsf{AC}_U$: Extracts the complete set of accounts $\mathsf{AC}_U = \{\mathsf{ac}_i\}$ currently recorded in the state.
+
+    \item $\mathsf{TxExt}(\mathsf{tx}) \rightarrow \mathsf{AC}_T$: Extracts from a transaction $\mathsf{tx}$ the list of target accounts $\mathsf{AC}_T = \{\mathsf{ac}_i\}$ that were newly introduced or referenced.
+
+    \item $\mathsf{SrcChk}(\mathsf{ac}, \mathsf{sk}_j, a) \rightarrow b$: \textcolor{red}{Verifies that a source account} $\mathsf{ac}$ is associated with the given secret key $\mathsf{sk}_j$ and amount $a$. Outputs $1$ if valid, else $0$.
+
+    \item $\mathsf{TgtChk}(\mathsf{ac}, \mathsf{mpk}, \mathsf{tk}, a) \rightarrow b$: Checks whether a target account $\mathsf{ac}$ was properly generated under public key $\mathsf{mpk}$ and token $\mathsf{tk}$ for the value $a$. Outputs $1$ if the check passes, and $0$ otherwise.
+\end{itemize}
+\end{definition}
+
 \subsection{Correctness}
 \subsection{Security}
 \subsection{Construction}
+In general, the design involves two types of transactions: threshold-based and standard (non-threshold) transactions. Within the context of a DEX, freeze transactions temporarily lock user funds by transferring them to addresses governed by threshold signature schemes. This mechanism ensures that no single party can unilaterally access the funds. Instead, a quorum of threshold servers must collaboratively generate valid signatures to authorize subsequent transactions, thereby finalizing the exchange securely and collectively. 
 
 \newpage

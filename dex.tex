@@ -9,12 +9,16 @@ In order to setup the protocol, the liquidity providers $\mathcal{L}$ run a pre-
 Finally, they all deposit as a collateral $\mathsf{amnt}$ to the smart-contract address $\mathsf{scpk}$ on chain $\mathcal{B}_sc$.
 \paragraph*{Exchange}
 \begin{enumerate}
-\item Swaps are initiatized between the system and the client by exchanging signatures on the message $\mathsf{msg}_1 := ( \mathsf{cpk}_{\mathbb{B}_a}, \mathsf{cpk}_{\mathbb{B}_b}, \mathsf{amnt}_a, \mathsf{amnt}_b )$.
-\item Users proceed to swapping $\mathsf{amnt_a}$ to $\mathsf{P}_a$ and send the message $\mathsf{msg}_2 := ( \mathsf{tx}^{\mathsf{ex1}}_{\mathbb{B}_a}, \delta )$.
-\item The server verifies that the transaction has been confirmed with the correct amount, and then runs a threshold signature to sign  $\mathsf{tx}^{\mathsf{ex2}}_{\mathbb{B}_b}$. The transaction is either commited to beforehand or contains an unique identifier as additional data (or generate a new address from a master key pair in order to have "unique" transactions for each swap). 
-\item If the user does not receive a valid signature, they can request a refund on the smart contract by providing message $\mathsf{msg}_1$ and $\mathsf{msg}_2$ to the smart contract which proceeds to verify the signatures and the validity of the transaction in $\mathsf{msg}_2$. It then asks each liquidity provider that participated in the swap to provide a signature share of $\mathsf{tx}^{\mathsf{ex2}}_{\mathbb{B}_b}$. If the smart contract can retrieve the signature, it gives it to the user. Otherwise, it authorizes a refund using the staked assets of the cheating liquidity providers.
-Because poolers might collude with an user if the exchange rate is not fair (by agreeing on sharing the profit), poolers that did not sign the transaction must be able to contest the transaction exchage rate to the smart contract and refund (+ punishment fee?) the difference.
+	\item A client $\client$ intiliazes an exchange by sending the message $\msg_1 := ( \pk_{\chain_a}, \pk_{\chain_b}, \amnt_a, \amnt_b, \pk_\client)$ and the respective signature $\sigma^{\msg_1}_\client $.
+	\item The requested amount and signature are verified and if accepted the tuple $( \msg_1, \sigma^{\msg_1}_\client )$ is signed by the set of participating liquidity providers $\swappers$, sending $\sigma^{(\msg_1, \sigma^{\msg_1}_\client)}_{\swappers}$ to the client.
+	\item The client sends an unsigned transaction $\tx^{\client \rightarrow \pool}_{\chain_a}$ to the server, and the poolers respectively prepare and send $\tx^{\pool \rightarrow \client}_{\chain_b}$ to the client.
+	\item The parties verify the respective validity of the amount and targets of the transaction, and if accepted they both sign and exchange the signature on the tuple $\msg_2 := (\tx^{\client \rightarrow \pool}_{\chain_a}, \tx^{\pool \rightarrow \client}_{\chain_b})$, receiving $\sigma^{\msg_2,}_{\swappers}$ and $\sigma^{\msg_2}_{\client}$ respectively.
+	\item The client $\client$ proceeds to move first, signing and publishing $\tx^{\client \rightarrow \pool}_{\chain_a}$. The signature is exchanged to the server.
+	\item The server waits until $\tx^{\client \rightarrow \pool}_{\chain_a}$ is confirmed, and proceeds to respectively (threshold) sign and publish $\tx^{\pool \rightarrow \client}_{\chain_b}$, possibly exchanging the signature to the client.
 \end{enumerate}
+\paragraph*{Refund.} 
+If the user does not receive a valid signature or detect the transaction, they can request a refund to the validation service, providing a transcript of the exchange messages. The validation service first verifies that all the messages have been signed by both the client $\client$ and the swappers $\swappers$, and that $\tx^{\client \rightarrow \pool}_{\chain_a}$ has been confirmed on $\chain_a$, and early aborts otherwise. It then proceeds to ask the swappers $\swappers$ to provide valid signature shares (or a full signature) on $\tx^{\pool \rightarrow \client}_{\chain_b}$. If the validation service can retrieve the signature, it forwards it to the user. Otherwise, it authorizes a refund using the staked assets of the detected cheating liquidity providers. \\
+Because poolers might collude with a client if the exchange rate is not fair (i.e., by agreeing on sharing the profit), poolers that did not sign the transaction must be able to contest the transaction exchage rate to the smart contract and refund the difference.
 \paragraph*{Withdrawal.}
 Liquidity providers must be able to withdraw from each pool their originally deposited assets plus the fees that they earned.  \\
 In order to withdraw their assets, poolers must be able to submit a withdrawal request to the network signed with their own key. They then create a transaction and request to threshold sign it, with other poolers aborting if the balance amount is incorrect. \\
@@ -24,8 +28,25 @@ In case other poolers want to collude with the withdrawer by signing a transacti
 Suppose the threshold signature requires $T$ signature shares out of $N$ parties. Then the minimum amount of collateral required to be staked in case of colluding poolers is $x \cdot \frac{N-T}{T}$, where $x$ is the amount of assets deposited for each secret key share.
 The maximum amount a single user can swap with the whole swap covered by a collateral is $x \cdot T-1$.
 \subsection{Syntax}
+\begin{definition} The validation functionality $\smartcontract_{\mathsf{dex}}$ is defined by the following set of algorithms.
+\begin{itemize}[topsep=0pt, itemsep=0pt, leftmargin=2em]
+    \item $\mathbf{0/1} \gets \mathbf{Setup}()$: Wait until all poolers have deposited the collateral $\amnt$
+    \item $(\tx, \sigma) \gets \mathbf{ForceSwap}(T_\mathsf{swap}, \pk_{\chain_{\smartcontract}})$: The $\mathsf{ForceSwap}$ algorithm takes as input the transcript of the swap protocol $T_\mathsf{swap} = (\msg_1, \msg_2, ...)$ and a refund address $\pk_{\chain_{\smartcontract}}$. The algorithm verifies that each message in the transcript is correctly signed by the corresponding party, and that the transaction $\tx^{\client \rightarrow \pool}_{\chain_a}$ provided by the client $\client$ is confirmed, early aborting otherwise. It then proceeds to ask the participating set of liquidity providers $\swappers$ to provide the threshold signature shares for the transaction $\tx^{\pool \rightarrow \client}_{\chain_b}$. The algorithm then either outputs the complete signature $\sigma^{\pool \rightarrow \client}_{\chain_b}$ if it receives enough shares or issues a refund transaction to the provided refund address $\tx^{\smartcontract \rightarrow \client}_{\chain_\smartcontract}$, paying with the staked assets of the uncooperative liquidity providers and outputing it alongside its signature $\tx^{\smartcontract \rightarrow \client}_{\chain_\smartcontract}$
+    \item $(\tx, \sigma) \gets \mathbf{Withdraw}(T_\mathsf{withdraw}, \pk_{\chain_{\smartcontract}})$:
+    \item $(\tx, \sigma) \gets \mathbf{ForceWithdraw}(T_\mathsf{withdraw}, \pk_{\chain_{\smartcontract}})$: The $\mathsf{ForceWithdraw}$ algorithm takes as input the transcript of the withdrawal protocol $T_\mathsf{swap} = (\msg_1, \msg_2, ...)$ and a refund address $\pk_{\chain_{\smartcontract}}$. The algorithm verifies that each message in the transcript is correctly signed by the corresponding party. It then proceeds to ask the set of liquidity providers to provide a threshold signature on the withdraw transaction $\tx^{\pool \rightarrow \mathcal{L}}_{\chain_a}$.  The algorithm then either outputs the complete signature $\tx^{\pool \rightarrow \mathcal{L}}_{\chain_a}$ if it receives enough shares or issues a refund transaction to the provided refund address $\tx^{\smartcontract \rightarrow \mathcal{L}}_{\chain_\smartcontract}$, paying with the staked assets of the uncooperative liquidity providers and outputing it alongside its signature $\tx^{\smartcontract \rightarrow \mathcal{L}}_{\chain_\smartcontract}$
+    \item $(0/1) \gets \mathbf{PunishWithdraw}(T_\mathsf{withdraw})$: The $\mathsf{PunishWithdraw}$ algorithm takes as input the transcript of the withdrawal protocol $T_\mathsf{withdraw} = (\msg_1, \msg_2, ...)$. 
+    \item $(0/1) \gets \mathbf{PunishSwap}(T_\mathsf{swap})$: The $\mathsf{PunishSwap}$ algorithm takes as input the transcript of the withdrawal protocol $T_\mathsf{swap} = (\msg_1, \msg_2, ...)$.
+\end{itemize}
+\end{definition}
+
+%\begin{itemize}
+%	\item the message $\msg_1 := ( \pk_{\chain_a}, \pk_{\chain_b}, \amnt_a, \amnt_b, \pk_\client)$ along with the signatures $\sigma^{\msg_1}_\client$ and $\sigma^{(\msg_1, \sigma^{\msg_1}_\client)}_{\swappers}$ of the client and the pool, respectively.
+%	\item the message $\msg_2 := ( \tx^{\client \rightarrow \pool}_{\chain_a}, \tx^{\pool \rightarrow \client}_{\chain_b} )$ and the signatures $\sigma^{\msg_2}_{\swappers}$, $\sigma^{\client \rightarrow \pool}_{\chain_a}$ on transaction $\tx^{\client \rightarrow \pool}$.
+% 	\item a refund address $\pk_{\chain_{\smartcontract}}$
+%\end{itemize}
+
 \subsection{Correctness}
 \subsection{Security}
 \subsection{Construction}
 
-\newpage 
+\newpage

@@ -6,14 +6,14 @@
 \begin{definition}
 A threshold ring confidential transactions (\textsf{tRingCT}) scheme consists of the PPT algorithms
 \[
-\Omega^{(t,n)} = (\textsf{Setup}, \textsf{tKGen}, \textsf{tKDer}, \textsf{pTrans}, \textsf{Vf}, \textsf{StExt}, \textsf{TxExt}, \textsf{SrcChk}, \textsf{TgtChk})
+\Omega^{(t,n)} = (\textsf{Setup}, \textsf{KGen}, \textsf{tKDer}, \textsf{pTrans}, \textsf{Vf}, \textsf{StExt}, \textsf{TxExt}, \textsf{SrcChk}, \textsf{TgtChk})
 \]
 with the following interfaces:
 
 \begin{itemize}
     \item $\mathsf{Setup}(1^\lambda) \rightarrow (\mathsf{pp}, \mathsf{st})$: Initializes the system by generating public parameters $\mathsf{pp}$ and an initial state $\mathsf{st}$, using the security parameter $\lambda$.
 
-    \item $\mathsf{tKGen}(\mathsf{pp}, n, t) \rightarrow \{(\mathsf{mpk}_j, \mathsf{msk}_j)\}_{j=1}^n$: Produces $n$ public/private key pairs distributed across $n$ participants, such that any subset of at least $t$ can jointly derive usable secrets. The result includes key shares $(\mathsf{mpk}_j, \mathsf{msk}_j)$ for each party.
+    \item $\mathsf{KGen}(\mathsf{pp}, n, t) \rightarrow \{(\mathsf{mpk}_j, \mathsf{msk}_j)\}_{j=1}^n$: Produces $n$ public/private key pairs distributed across $n$ participants, such that any subset of at least $t$ can jointly derive usable secrets. The result includes key shares $(\mathsf{mpk}_j, \mathsf{msk}_j)$ for each party.
 
     \item $\mathsf{KDer}(\mathsf{msk}_j, \mathsf{tk}) \rightarrow (\mathsf{sk}_j, a)$: On input private key share $\mathsf{msk}_j, {i \in J}$ and a token $\mathsf{tk}$, party $P_j$ derives a secret key $\mathsf{sk}_j$ and corresponding amount $a$.
 
@@ -36,6 +36,43 @@ with the following interfaces:
 
 \subsection{Correctness}
 \subsection{Security}
+\subsection{Distributed Linkability Tags}
+In threshold variants of RingCT, it becomes necessary to extend conventional tagging mechanisms to support collaborative signing by multiple parties. To address this, we introduce the notion of \emph{Distributed Linkability Tags (DLTs)}. These tags enable detection of double-spending attempts across threshold-generated transactions, while maintaining strong anonymity and privacy guarantees.
+
+A \emph{DLT} is a cryptographic identifier derived such that it binds to the secret signing shares of a group without revealing any individual secret or compromising the underlying master secret key. If the same input is used in multiple transactions, the resulting DLTs will collide, allowing verifiers to detect the reuse. At the same time, honest and distinct signers will produce unlinkable tags, preserving privacy.
+
+\paragraph{Definition.} A Distributed Linkability Tagging scheme consists of a tuple of algorithms:
+\[
+{\mathsf{DLT}} = (\mathsf{Setup}, \mathsf{KGen}, \mathsf{pEval}, \mathsf{Eval}, \mathsf{Combine})
+\]
+with the following functionality:
+\begin{itemize}
+    \item $\mathsf{Setup}(1^\lambda) \rightarrow \mathsf{pp}$: Takes as input a security parameter $1^\lambda$, a number of servers $n$, a threshold $t$, and outputs public parameters $\mathsf{pp}$.
+    
+     \item $\mathsf{KGen}(\mathsf{pp}, n, t) \rightarrow \{(\mathsf{pk}_j, \mathsf{sk}_j)\}_{j=1}^n$: Takes as input a randomly sampled master secret key $\mathsf{sk} \in \mathcal{K}$ and produces $n$ public/private key pairs distributed across $n$ participants, forming a $(t,N)$-threshold secret sharng of $\mathsf{sk}$. The result includes key shares $(\mathsf{pk}_j, \mathsf{sk}_j)$ for each party, where the public key $\mathsf{pk}_j$ is derived from secret key $\mathsf{sk}_j$.
+
+     \item $\mathsf{PEval}(\mathsf{sk}_j) \rightarrow \tau_j$: The partial evaluation algorithm takes as input a key share $\mathsf{sk}_j$ and returns a partial linkability tag $\tau_j = \mathsf{PEval}(\mathsf{sk}_j) \in \mathcal{R}$.
+
+     \item $\mathsf{Combine} : \mathcal{S} \times \mathcal{R}^t \rightarrow \mathcal{R} (\mathcal{S},\{\tau_j\}_{j \in \mathcal{S}}) \rightarrow \tau$: Takes as input a $t$-subset $\mathcal{S} \subset [N]$ together with $t$ partial tags $\{\tau_j\}_{j \in \mathcal{S}}$ and returns the final output $\tau \in \mathcal{R}$.
+
+     \item $\mathsf{Eval}(\mathsf{pp}, \mathsf{sk}) \rightarrow \tau$: Takes as input the full secret key $\mathsf{sk}$ and outputs a linkability tag $\tau= \mathsf{Eval}(\mathsf{sk}) \in \mathcal{R}$.
+      
+\end{itemize}
+
+
+In the threshold setting, $\mathsf{sk}$ is never fully known to any single party. Instead, the function $\mathsf{Eval}$ is evaluated interactively or via a secure multiparty computation among the parties holding secret shares $\{\mathsf{sk}_1, \ldots, \mathsf{sk}_t\}$. The function $\mathsf{Eval}$ must satisfy the following properties:
+\begin{itemize}
+    \item \textbf{Binding:} The tag $\tau$ must be uniquely determined by any $t$-subset $\mathcal{S} \subset [N]$ of shared keys, ensuring that reuse produces identical tags. I.e., for any $ \mathsf{Setup} (1^\lambda, 1^t, 1^N) \to \mathsf{pp}$, any
+master key $\mathsf{sk} \gets \mathcal{K}$ shared to $(\mathsf{sk_1}, \ldots, \mathsf{sk_N})$, any $t$-subset $\mathcal{S} = \{i_1, \ldots, i_t\} \subset [N]$, if $\tau_j = \mathsf{PEval}(\mathsf{sk_j})$ for each $j \in [t]$, then
+we have $\mathsf{Eval}(\mathsf{sk}) = \mathsf{Combine}(\mathcal{S}, (\tau_{i_1}, \ldots, \tau_{i_t}))$ with overwhelming probability over the
+random coins of $\mathsf{Setup}$ and $\mathsf{KGen}$. 
+    \item \textbf{Anonymity:} The tag $\tau$ must reveal no information about the parties involved or the key.
+    \item \textbf{Bijectiveness:} For any public parameters $\mathsf{pp}$, the functions $\mathsf{KGen(pp, \cdot)}$ and $\mathsf{Eval(pp, \cdot)}$ are bijections over the key space.
+\end{itemize}
+
+This abstraction preserves the primary security goal of traditional linkability tags—namely, detection of double-spending—while enabling decentralized generation in threshold environments.
+
+
 \subsection{Construction}
 In general, the design involves two types of transactions: threshold-based and standard (non-threshold) transactions. Within the context of a DEX, freeze transactions temporarily lock user funds by transferring them to addresses governed by threshold signature schemes. This mechanism ensures that no single party can unilaterally access the funds. Instead, a quorum of threshold servers must collaboratively generate valid signatures to authorize subsequent transactions, thereby finalizing the exchange securely and collectively. 
 

@@ -9,11 +9,10 @@ In order to setup the protocol, the liquidity providers $\mathcal{L}$ run a pre-
 Finally, they all deposit as a collateral $\mathsf{amnt}$ to the smart-contract address $\mathsf{scpk}$ on chain $\mathcal{B}_sc$.
 \paragraph*{Exchange}
 \begin{enumerate}
-	\item A client $\client$ intiliazes an exchange by sending the message $\msg_1 := ( \pk_{\chain_a}, \pk_{\chain_b}, \amnt_a, \amnt_b, \pk_\client)$ and the respective signature $\sigma^{\msg_1}_\client $.
-	\item The requested amount and signature are verified and if accepted the tuple $( \msg_1, \sigma^{\msg_1}_\client )$ is signed by the set of participating liquidity providers $\swappers$, sending $\sigma^{(\msg_1, \sigma^{\msg_1}_\client)}_{\swappers}$ to the client.
-	\item The client sends an unsigned transaction $\tx^{\client \rightarrow \pool}_{\chain_a}$ to the server, and the poolers respectively prepare and send $\tx^{\pool \rightarrow \client}_{\chain_b}$ to the client.
-	\item The parties verify the respective validity of the amount and targets of the transaction, and if accepted they both sign and exchange the signature on the tuple $\msg_2 := (\tx^{\client \rightarrow \pool}_{\chain_a}, \tx^{\pool \rightarrow \client}_{\chain_b})$, receiving $\sigma^{\msg_2,}_{\swappers}$ and $\sigma^{\msg_2}_{\client}$ respectively.
-	\item The client $\client$ proceeds to move first, signing and publishing $\tx^{\client \rightarrow \pool}_{\chain_a}$. The signature is exchanged to the server.
+	\item A client $\client$ intiliazes an exchange by sending the message $\msg_1 := (\tx^{\client \rightarrow \pool}_{\chain_a}, \pk_{\chain_b}, \pk_\client)$.
+	\item If the transaction data in $\tx^{\client \rightarrow \pool}_{\chain_a}$ is accepted, the server proceeds to generate the unsigned transaction $\tx^{\pool \rightarrow \client}_{\chain_b})$ paying an amount relative to the swap request and the current exchange rate.
+	\item The client verifies the respective validity of the amounts and targets of the transaction, and if accepted it proceeds to sign the tuple $\msg_2 := (\tx^{\client \rightarrow \pool}_{\chain_a}, \tx^{\pool \rightarrow \client}_{\chain_b}, \pk_{\chain_b}, \pk_\client)$, sending the signature $\sigma^{\msg_2}_{\client}$.
+	\item The server verifies the tuple $\msg_2$ and the signature $\sigma^{\msg_2}_{\client}$, and similarly signs the tuple and sends the signature $\sigma^{\msg_2}_{\swappers}$.
 	\item The server waits until $\tx^{\client \rightarrow \pool}_{\chain_a}$ is confirmed, and proceeds to respectively (threshold) sign and publish $\tx^{\pool \rightarrow \client}_{\chain_b}$, possibly exchanging the signature to the client.
 \end{enumerate}
 \paragraph*{Refund.} 

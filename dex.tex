@@ -43,6 +43,126 @@ The maximum amount a single user can swap with the whole swap covered by a colla
 %	\item the message $\msg_2 := ( \tx^{\client \rightarrow \pool}_{\chain_a}, \tx^{\pool \rightarrow \client}_{\chain_b} )$ and the signatures $\sigma^{\msg_2}_{\swappers}$, $\sigma^{\client \rightarrow \pool}_{\chain_a}$ on transaction $\tx^{\client \rightarrow \pool}$.
 % 	\item a refund address $\pk_{\chain_{\smartcontract}}$
 %\end{itemize}
+\subsubsection{Building blocks.}
+\paragraph*{Threshold signatures}
+Transaction need to be authorized from a consensus of liquidity providers. Such a functionality can be achieved with the help of threshold signatures, described in section 3. Here we describe a protocol, run by a liquidity provider $\swappers_c$, acting as a "coordinator", together with all other liquidity providers.
+\subsubsection{Transaction verification}
+In order to avoid honesty assumption for liquidity providers or other parties, we must use realize a functionality that can be run as a smart contract (or realized as part of a ledger functionality) which can prove the confirmation of transaction for heterogeneous blockchains. \
+We utilize the technique described in \cite{zkbridge} to validate transaction confirmation efficiently. We report the light client protocol and verification service.
+
+\begin{definition}[Light client protocol]
+A light client protocol enables a node to synchronize the block headers of the state of the
+blockchain. Suppose all block headers in party $P$’s local view are $\{ \header_i \}^P_{i \in R}$, 
+the light client protocol satisfies following properties:
+\begin{enumerate}
+	\item \textbf{Succinctness}: For each state update, the light client protocol only takes $O(1)$ time to synchronize the state.
+	\item \textbf{Liveness}: If an honest full node receives some transaction $\mathsf{tx}$ at some round $i$, then $\mathsf{tx}$ must be included into the blockchain eventually. A light client protocol will eventually include a block header $\header_i$ such that the corresponding block includes the transaction $tx$.
+        \item \textbf{Consistency}: as for any honest nodes $P_{\chaina}$ and $P{\chainb}$, and for any rounds of $R_0$ and $R_1$, it must be satisfied that either $\{ \header_i \}^{P_{\chaina}}_{i \in R_0}$ is a prefix of $\{ \header_i \}^{P{\chainb}}_{i \in R_1}$ or viceversa.
+\end{enumerate}
+\end{definition}
+
+
+\begin{definition}[Verification service $\mathsf{VS}$]
+A verification service $\mathsf{VS}_\chain$ parametired by the ledger $\chain$ is defined by the tuple of the following algorithms:
+\begin{itemize}[topsep=0pt, itemsep=0pt, leftmargin=2em]
+    \item $(0,1) \gets$ \textbf{HeaderUpdate}$(\pi, \{ header_i \}_{i \in R})$: the $\mathsf{HeaderUpdate}$ stateful algorithm contains a list of verified headers $\mathcal{D}$ and a light client state $\mathsf{LCS}$. \\ The algorithm verifies that $\header_0 \in \mathcal{D}$ and $\mathsf{NIZK}.\mathsf{Vf}(\mathsf{LCS}, \pi, \{ header_i \}_{i \in R}) = 1$. If the verification succeeds, update $\mathsf{LCS}$ and $\mathcal{D}$ accordingly, returning 1. Otherwise, abort returning 0.
+\end{itemize}
+\end{definition}
+
+In order to verify that a transaction has been included in a specific headers, it simply suffices to compute the Merkle proof of the transaction of such header. We generalize the notion using vector commitments.
+
+\begin{itemize}
+    \item $(\tx_1, ..., \tx_n) \gets \textbf{GetTxVec}(\st)$
+\end{itemize}
+
+\subsubsection{Contest service $\mathsf{CS}$}.
+
+\begin{definition}[Contest service $\mathsf{CS}$]
+A contest service $\mathsf{CS}_\smartcontract$ for some ledger $\smartcontract$ is defined by the tuple of the following algorithms:
+\begin{itemize}[topsep=0pt, itemsep=0pt, leftmargin=2em]
+    \item $(\tx, \sigma) \gets \mathbf{Contest}(T_\exc, \pi_\tx, n, \pk_\smartcontract)$: The $\contest$ algorithm takes as input the the transcript of the exchange protocol $T_\exc := (\exc, \sigma^\client_\exc, \sigma^\pool_\exc)$, where $\exc := (\tx_{\chaina}, \tx{\chainb}, \pk_c^\client)$. The algorithm does the following:
+    \begin{itemize}
+    \item It first verifies that both $\sigma^\client_\exc$ and $\sigma^\pool_\exc$ are valid signatures on the exchange message $\exc$, and aborts otherwise.
+    \item It gets the root $C$ and transaction vector $(\tx_1, ..., \tx_n)$ from the $n$-th header from $\mathsf{VS}_{\chaina}$, and verifies that $\textbf{Verify}(C, n, \mathbf{tx}_n, \pi_\tx) = 1$, aborting otherwise.
+    \item It now waits for each $\swappers_i$ that participated in the swap to provide a valid share of $\tx{\chainb}$. If it gets enough shares, it can output it to the user. Otherwise, record every uncooperative in $\mathcal{J} := \{ L_j \}_{j \in \swappers}$.
+    \item If a valid signature could not be retrieved, punish the uncooperative liquidity providers in $\mathcal{J}$ by providing a refund to the user on $\pk_\smartcontract$
+    \end{itemize}
+\end{itemize}
+\end{definition}
+\subsubsection{Exchange protocol}
+\begin{figure}[H]
+    \begin{minipage}[t]{0.5\textwidth}
+    \begin{pchstack}[boxed]
+    %(\pk_{\chaina}^\pool, \pk_c^\pool, \pk^\pool{\chainb}, P, \sk_c^\user, \pk_c^\user, \sk_{\chaina}^\user, \pk^\user_{\chaina}, \sk^\user_{\chaina})
+    \pseudocode{
+        \text{Client $\client$}  \:\: \\[0.1\baselineskip ][\hline]
+        \tx_{\chaina} := \mathsf{TxGen}_{\chaina}(\st, \pk_{\chaina}^\client, \pk_{\chaina}^\pool, \amnt_{\chaina}) \\
+	\send(\coordinator, \tx_{\chaina}, \pk_c^\client) \\
+	(\tx_{\chainb}, \rho) \gets \receive(\coordinator) \\
+        \assert P(\tx_{\chaina}, \tx_{\chainb}) = 1 \\
+        \exc := (\tx_{\chaina}, \tx_{\chainb}, \pk_c^\client, \rho) \\
+        \sigma^\client_\exc := \Pi_c.\mathsf{Sg}(\sk_c^\client, \exc) \\
+        \send(\swappers, \exc, \sigma_\exc) \\
+	\sigma^{\coordinator}_\exc \gets \receive(\swappers_i) \\
+        \assert \Sigma_c.\mathsf{Verify}(\pk_c^\pool, \exc, \sigma^\pool_\exc) \\
+        \sigma^\client_{\tx_{\chaina}} := \Pi_{\chaina}.\mathsf{Sg}(\sk_{\chaina}^\client, \tx_{\chaina}) \\
+        \mathsf{TxPub}_{\chaina}(\tx_{\chaina}, \sigma^\client_{\tx_{\chaina}}) \\
+        \assert \mathsf{TxVf}_{\chainb}(\tx_{\chainb}) \neq 1 \\
+    }
+    \end{pchstack}
+    \end{minipage}%
+    \hspace{0.7cm}
+    \begin{minipage}[t]{0.5\textwidth}
+    \begin{pchstack}[boxed]
+    \pseudocode{
+	\text{Coordinator $\coordinator$} \:\: \\[0.1\baselineskip ][\hline]
+        (\tx_{\chaina}, \pk_c^\client) \gets \receive(\client) \\
+        \assert P(\tx_{\chaina}) = 1 \\
+        \amnt_{\chainb} := \mathsf{Convert}(\chaina, \amnt_{\chaina}) \\
+        \tx_{\chainb} := \mathsf{TxGen}_{\chainb}(st, \pk_{\chainb}^\pool, \pk_{\chainb}^\client, \amnt_{\chainb}) \\
+	\send(\{ L_i \}_{i \in \swappers}, \tx_{\chainb}, \tx_{\chaina}, \pk_c^\client) \\
+	\{ \rho_c^i, \rho_{\chainb}^i \}_{i \in \swappers} \gets \receive(\{ L_i \}_{i \in \swappers}) \\
+	\rho_{\chainb} := \Sigma_{\chainb}.\mathsf{PreAgg}(\pk_b^\pool, \{ \rho_i \}_{i \in \swappers}) \\
+	\send(\client, \tx_{\chainb}, \rho_{\chainb}) \\
+        (\exc, \sigma_\exc) \gets \receive(\client) \\
+        \assert \Pi_c.\mathsf{Vf}(\pk_c^\client, \exc, \sigma^\client_\exc) \\
+	\send(\{ L_i \}_{i \in \swappers}, \exc, \pk_c^\client) \\
+	\{ \sigma^i_{\exc} \}_{i \in \swappers} \gets \receive(\{ L_i \}_{i \in \swappers}) \\
+	\sigma^\pool_\exc := \Sigma_c.\mathsf{SignAgg}(\pk_c^\pool, \{ \sigma^i_{\exc} \}_{i \in \swappers}, \exc) \\
+        \send(\client, \sigma^\pool_\exc) \\
+        \assert \mathsf{TxVf}_{\chaina}(\tx_{\chaina}) \\
+	\{ \sigma^i_{\tx_{\chainb}} \}_{i \in \swappers} \gets \receive(\{ L_i \}_{i \in \swappers}) \\
+	\sigma^\pool_{\tx_{\chainb}} := \Sigma_{\chainb}.\mathsf{SignAgg}(\pk_b^\pool, \{ \sigma^i_{\tx_{\chainb}} \}_{i \in \swappers}, \tx_{\chainb}) \\
+        \mathsf{TxPub}_{\chainb}(\tx_{\chainb}, \sigma^\pool_{\tx_{\chainb}}) \\
+    }
+    \end{pchstack}
+    \end{minipage}%
+    \caption{Exchange protocol execution for a client $\client$ and a coordinator}
+    \label{fig:dex_exchange}
+\end{figure}
+\begin{figure}[H]
+    \begin{minipage}[t]{0.5\textwidth}
+    \begin{pchstack}[boxed]
+    \pseudocode{
+        \text{Client $\client$}  \:\: \\[0.1\baselineskip ][\hline]
+        \st_{\chaina} := \mathsf{GetState}_{\chaina} \\
+        \header_l := \mathsf{VS}_{\chaina}.\mathsf{GetLastHeader} \\
+        \{ \header \}_{l,..,n} := \parse \st_{\chaina} \\
+        \mathsf{wit} := \mathsf{LCS}_l \\
+        \mathsf{stmnt} :=  \{ \header \}_{l,..,n} \\
+        \pi := \mathsf{NIZK}.\mathsf{Prove}(\mathsf{wit}, \mathsf{stmnt}) \\
+        \mathsf{VS}_{\chaina}.\mathsf{HeaderUpdate}(\pi, \{ \header \}_{l,..,n}) \\
+	(\tx_1, ..., \tx_l) \gets \textsf{GetTxVec}(n, \st_{\chaina}) \\
+        I := \{ I \in \{ 1,..,n \} \mid \mathsf{tx}_I = \tx_{\chaina} \} \\
+        \pi_\tx := \mathsf{VC}.\mathsf{Open}((\mathsf{tx}_1, ..., \mathsf{tx}_l), I) \\
+        T_\exc := (\exc, \sigma^\client_\exc, \sigma^\pool_\exc) \\
+        \mathsf{RS}.\contest(T_\exc, \pi_\tx, n, \pk_\smartcontract) \\
+    }
+    \end{pchstack}
+    \end{minipage}%
+    \caption{Contest protocol execution for a client $\client$}
+    \label{fig:dex_refund}
+\end{figure}
 
 \subsection{Correctness}
 \subsection{Security}

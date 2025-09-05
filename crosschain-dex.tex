@@ -12,6 +12,30 @@
 \usepackage{extarrows}
 \usepackage{float}
 \usepackage{makeidx}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage[margin=1.7cm]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{microtype}
+\usepackage{tcolorbox}
+\tcbset{colback=white,colframe=black!70,boxrule=0.4pt,arc=1.2mm,left=3pt,right=3pt,top=2pt,bottom=2pt}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=1.1em,itemsep=0.2ex,topsep=0.2ex}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+% Small caps heading for each algorithm name
+\newcommand{\procname}[1]{\textbf{\textsf{#1}}}
+% Convenience
+\newcommand{\N}{\mathbb{N}}
+
+% A compact pseudo “algorithm” environment using tcolorbox
+\newenvironment{algo}[1]{%
+  \begin{tcolorbox}
+  \textbf{#1}\par\vspace{2pt}\hrule\vspace{4pt}
+}{%
+  \end{tcolorbox}
+}
 \usepackage{enumitem}        % possibility to label list items by alphabet
 \newcommand{\M}[1]{\ensuremath{\text{\texttt{#1}}}}
 \usepackage[
@@ -81,7 +105,7 @@
 \addbibresource{references.bib}
 
 \begin{document}         
-\author{Lorenzo Tucci}
+\author{Lorenzo Tucci, Reyhaneh Rabaninejad}
 \title{Secure cross-chain decentralized exchange}
 
 \maketitle
@@ -98,3 +122,5 @@
 \input{dex}
 \input{threshold_ringct}
 \input{experiments}
+
+

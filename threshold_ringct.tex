@@ -6,7 +6,7 @@
 \begin{definition}
 A threshold ring confidential transactions (\textsf{tRingCT}) scheme consists of the PPT algorithms
 \[
-\Omega^{(t,n)} = (\textsf{Setup}, \textsf{KGen}, \textsf{tKDer}, \textsf{pTrans}, \textsf{Vf}, \textsf{StExt}, \textsf{TxExt}, \textsf{SrcChk}, \textsf{TgtChk})
+\Omega^{(t,n)} = (\mathsf{Setup}, \mathsf{KGen}, \mathsf{KDer}, \mathsf{PTrans}, \mathsf{Combine}, \mathsf{Vf}, \mathsf{StExt}, \mathsf{TxExt}, \mathsf{SrcChk}, \mathsf{TgtChk})
 \]
 with the following interfaces:
 
@@ -17,7 +17,7 @@ with the following interfaces:
 
     \item $\mathsf{KDer}(\mathsf{msk}_j, \mathsf{tk}) \rightarrow (\mathsf{sk}_j, a)$: On input private key share $\mathsf{msk}_j, {i \in J}$ and a token $\mathsf{tk}$, party $P_j$ derives a secret key $\mathsf{sk}_j$ and corresponding amount $a$.
 
-    \item $\mathsf{pTrans}(\mathsf{st}, P, R, \mathcal{S}, \mathcal{T}) \rightarrow (\mathsf{tx}_j, \mathsf{TK})$: Constructs a transaction $\mathsf{tx}_j$ along with a set of target tokens $\mathsf{TK} = \{\mathsf{tk}_i\}_{i \in \mathcal{T}}$. It takes as input the current state $\mathsf{st}$, a policy predicate $P$ over amounts, a ring of anonymity set indices $R$, \textcolor{red}{a set of} source accounts information $\mathcal{S} = \{(\mathsf{sk}_i, a_i)\}$, and a target specification $\mathcal{T} = \{(\mathsf{mpk}'_i, a'_i)\}$.
+    \item $\mathsf{PTrans}(\mathsf{st}, P, R, \mathcal{S}, \mathcal{T}) \rightarrow (\mathsf{tx}_j, \mathsf{TK})$: Constructs a transaction $\mathsf{tx}_j$ along with a set of target tokens $\mathsf{TK} = \{\mathsf{tk}_i\}_{i \in \mathcal{T}}$. It takes as input the current state $\mathsf{st}$, a policy predicate $P$ over amounts, a ring of anonymity set indices $R$, \textcolor{red}{a set of} source accounts information $\mathcal{S} = \{(\mathsf{sk}_i, a_i)\}$, and a target specification $\mathcal{T} = \{(\mathsf{mpk}'_i, a'_i)\}$.
 
     \item $\mathsf{Combine}(\{\mathsf{tx}_j\}_{j \in J}, \mathsf{TK}) \rightarrow (\mathsf{tx}, \mathsf{TK})$:  This algorithm aggregates a set of partial transactions $\{\mathsf{tx}_j\}_{j \in J}$—generated independently by authorized parties—into a single valid transaction $\mathsf{tx}$. The input also includes the set of target tokens $\mathsf{TK}$, which are preserved or merged as needed in the final output. The resulting transaction $\mathsf{tx}$ must satisfy structural integrity and verification constraints as if it had been produced by a single-party execution of $\mathsf{Trans}$.
 
@@ -36,14 +36,14 @@ with the following interfaces:
 
 \subsection{Correctness}
 \subsection{Security}
-\subsection{Distributed Linkability Tags}
+\subsection{Distributed Linkability Tags}\label{DLT}
 In threshold variants of RingCT, it becomes necessary to extend conventional tagging mechanisms to support collaborative signing by multiple parties. To address this, we introduce the notion of \emph{Distributed Linkability Tags (DLTs)}. These tags enable detection of double-spending attempts across threshold-generated transactions, while maintaining strong anonymity and privacy guarantees.
 
 A \emph{DLT} is a cryptographic identifier derived such that it binds to the secret signing shares of a group without revealing any individual secret or compromising the underlying master secret key. If the same input is used in multiple transactions, the resulting DLTs will collide, allowing verifiers to detect the reuse. At the same time, honest and distinct signers will produce unlinkable tags, preserving privacy.
 
 \paragraph{Definition.} A Distributed Linkability Tagging scheme consists of a tuple of algorithms:
 \[
-{\mathsf{DLT}} = (\mathsf{Setup}, \mathsf{KGen}, \mathsf{pEval}, \mathsf{Eval}, \mathsf{Combine})
+{\mathsf{DLT}} = (\mathsf{Setup}, \mathsf{KGen}, \mathsf{PEval}, \mathsf{Eval}, \mathsf{Combine})
 \]
 with the following functionality:
 \begin{itemize}
@@ -62,7 +62,7 @@ with the following functionality:
 
 In the threshold setting, $\mathsf{sk}$ is never fully known to any single party. Instead, the function $\mathsf{Eval}$ is evaluated interactively or via a secure multiparty computation among the parties holding secret shares $\{\mathsf{sk}_1, \ldots, \mathsf{sk}_t\}$. The function $\mathsf{Eval}$ must satisfy the following properties:
 \begin{itemize}
-    \item \textbf{Binding:} The tag $\tau$ must be uniquely determined by any $t$-subset $\mathcal{S} \subset [N]$ of shared keys, ensuring that reuse produces identical tags. I.e., for any $ \mathsf{Setup} (1^\lambda, 1^t, 1^N) \to \mathsf{pp}$, any
+    \item \textbf{Consistency:} The tag $\tau$ must be uniquely determined by any $t$-subset $\mathcal{S} \subset [N]$ of shared keys, ensuring that reuse produces identical tags. I.e., for any $ \mathsf{Setup} (1^\lambda, 1^t, 1^N) \to \mathsf{pp}$, any
 master key $\mathsf{sk} \gets \mathcal{K}$ shared to $(\mathsf{sk_1}, \ldots, \mathsf{sk_N})$, any $t$-subset $\mathcal{S} = \{i_1, \ldots, i_t\} \subset [N]$, if $\tau_j = \mathsf{PEval}(\mathsf{sk_j})$ for each $j \in [t]$, then
 we have $\mathsf{Eval}(\mathsf{sk}) = \mathsf{Combine}(\mathcal{S}, (\tau_{i_1}, \ldots, \tau_{i_t}))$ with overwhelming probability over the
 random coins of $\mathsf{Setup}$ and $\mathsf{KGen}$. 
@@ -74,6 +74,226 @@ This abstraction preserves the primary security goal of traditional linkability 
 
 
 \subsection{Construction}
-In general, the design involves two types of transactions: threshold-based and standard (non-threshold) transactions. Within the context of a DEX, freeze transactions temporarily lock user funds by transferring them to addresses governed by threshold signature schemes. This mechanism ensures that no single party can unilaterally access the funds. Instead, a quorum of threshold servers must collaboratively generate valid signatures to authorize subsequent transactions, thereby finalizing the exchange securely and collectively. 
+In general, the design involves two types of transactions: threshold and standard (non-threshold) transactions. Within the context of a DEX, freeze transactions temporarily lock user funds by transferring them to addresses governed by threshold signature schemes (threshold transactions). This mechanism ensures that no single party can unilaterally access the funds. Instead, a quorum of threshold servers must collaboratively generate valid signatures to authorize subsequent transactions, thereby finalizing the exchange securely and collectively. 
 
-\newpage
+Next, we describe the construction of a $t$-of-$n$ threshold RingCT scheme $\Omega^{(t,n)}$ with algorithms
+\[
+\Omega^{(t,n)} = (\mathsf{Setup}, \mathsf{KGen}, \mathsf{KDer}, \mathsf{PTrans}, \mathsf{Combine}, \mathsf{Vf}, \mathsf{StExt}, \mathsf{TxExt}, \mathsf{SrcChk}, \mathsf{TgtChk})
+\] 
+
+% \paragraph{Building blocks.}
+The scheme is based on three main building blocks: a \emph{distributed linkability tag scheme} $\mathsf{DLT}$, a \emph{commitment scheme} $\Gamma$, and a \emph{non-interactive argument system} $\Pi$.
+
+Similar to the standard RingCT scheme~\cite{lai2019omniring}, the system here maintains a global state consisting of:
+\begin{enumerate}
+    \item the set $\mathcal{A}_U$ of all user accounts, and
+    \item the set $\mathbb{Z}_U$ of tags that have appeared in past transactions.
+\end{enumerate}
+The set $\mathbb{Z}_U$ stores linkability tags $\tau$, which collide whenever the same signing key is reused across multiple spends. In the threshold setting, these tags are generated by the distributed linkability tag scheme $\mathsf{DLT}$ introduced in \autoref{DLT}.
+
+The master public and secret keys correspond to the public and secret keys of the $\mathsf{DLT}$ scheme. In particular, the key generation algorithm outputs a set of key shares, each of which may be held by one or more parties:
+\[
+    \{(\mathsf{mpk}_j, \mathsf{msk}_j)\}_{j=1}^n = \mathsf{KGen}(\mathsf{pp}, n, t),
+\]
+where $n$ denotes the total number of key shares, and $t$ specifies the threshold required to evaluate linkability tags.
+
+A threshold account, analogous to a standard account, is represented as $\mathsf{ac}:= (\mathsf{pk}, \mathsf{cm})$ and is associated with a token $\mathsf{tk}:= (\delta, r, a)$, where $a$ denotes the stored amount. The corresponding secret key is a vector 
+\[
+    \mathsf{sk} = ( s_1, \dots, s_n,r),
+\]
+where each component $s_j$ is derived from the token $\mathsf{tk}$ and master secret key share $\mathsf{msk}_j$  
+\[ 
+    s_j := \mathsf{msk}_j + \delta,
+\]
+Intuitively, $s_j$ is additively shared between the account partial owner (holding $\mathsf{msk}_j$) and the account creator (holding $\delta$).
+\textcolor{red}{The account public key $\mathsf{pk}$ is then computed by}
+\[
+    \mathsf{pk} = \mathsf{DLT.KGen}(s_1, \dots, s_n),
+\]
+while the account amount $a$ is committed in a commitment:
+\[
+    \mathsf{cm} = \mathsf{Com}(a; r)
+\]
+
+
+
+\paragraph{Transactions.}
+To form a transaction, each party $j$ holding a share of the secret key computes the partial tag
+    \[
+        \tau_{i,j} := \mathsf{DLT.PEval}(\{s_{i,j}\}),
+    \]
+   
+where $s_{i,j} := \mathsf{msk}_{i,j} + \delta_i$ are the effective secret keys for source accounts $i \in S$. 
+
+Next, sender $j$ generates new target accounts $\mathsf{ac}'_i$ with associated address $\mathsf{mpk}_i$ tokens $\mathsf{tk}_i= (\delta'_i, r', a')$ for each $i \in T$. Specifically, the sender hashes the transcript to get random value $r'_i \leftarrow \mathsf{H(trnc)},\delta'_i \leftarrow \mathsf{H'(trnc)}$ where
+\[
+\mathsf{trnc}=...
+\]
+% $r_i' \gets_{\$} \chi;\quad \delta_i' \gets_{\$} \mathcal{K}$
+
+
+Finally, sender $j$ constructs a non-interactive proof for the relation:
+\[
+\mathcal{R}_1(\mathsf{stmt}, \mathsf{wit}) := 
+\begin{cases}
+\tau_{\varphi_{\mathcal{S}}(i),j} = \mathsf{DLT.Eval}(s_{i,j}) & \forall i \in \mathcal{S} \\[4pt]
+\mathsf{SrcChk}(\mathsf{ac}_i, \mathsf{sk}_{i,j}, a_i) = 1 & \forall i \in \mathcal{S} \\[4pt]
+\end{cases}
+\]
+\[
+\mathcal{R}_2(\mathsf{stmt}, \mathsf{wit}) := 
+\begin{cases}
+S \subseteq R \\[4pt]
+\mathsf{TgtChk}(\mathsf{ac}'_i, \mathsf{mpk}_i, \mathsf{tk}_i, a'_i) = 1 & \forall i \in \mathcal{T} \\[4pt]
+P(a_{\mathcal{S}}, a'_{\mathcal{T}}) = 1
+\end{cases}
+\]
+where $\mathcal{P}$ is a family of predicates, and fix $P \in \mathcal{P}$. The target check algorithm $\mathsf{TgtChk}$ verifies that $\mathsf{cm} = \mathsf{Com}(a'; r')$. The {source check algorithm} additionally verifies \textcolor{red}{that} $\mathsf{pk}_j = \mathsf{DLT.KGen}(s_j)$.
+
+% \paragraph{Combine.}
+
+% \paragraph{Verification.}
+
+
+
+\begin{minipage}[t]{0.49\textwidth}
+
+\begin{algo}{$\mathsf{Setup}(1^\lambda)$}
+% \begin{align*}
+$\mathsf{crs} \leftarrow \Pi.\mathsf{Setup}(1^\lambda)$ \\
+$\mathsf{ck} \leftarrow \Gamma.\mathsf{Setup}(1^\lambda)$ \\
+$\mathsf{pp}_{\mathsf{DLT}} \leftarrow \mathsf{DLT.Setup}(1^\lambda)$ \\
+$\mathsf{pp} := (\mathsf{crs}, \mathsf{ck}, \mathsf{pp}_{\mathsf{DLT}})$ \\
+$\mathsf{st} := (AC_U, Z_U) := (\emptyset,\emptyset)$\\
+% \end{align*}
+\Return $(\mathsf{pp}, \mathsf{st})$
+\end{algo}
+
+\begin{algo}{$\mathsf{KGen}(\mathsf{pp},n, t)$}
+$\mathsf{msk} \gets_{\$}{\mathcal K}$\\
+$\{(\mathsf{msk}_j,\mathsf{mpk}_j)\}_{j=1}^{n} \gets \mathsf{DLT.KGen}(\mathsf{msk},\mathsf{pp},n, t)$\\
+\Return $\{(\mathsf{msk}_j,\mathsf{mpk}_j)\}_{j=1}^{n} $
+\end{algo}
+
+\begin{algo}{$\mathsf{KDer}(\mathsf{msk}_j, \mathsf{tk})$}
+\textbf{parse} $\mathsf{tk}$ as $(r,\delta, a)$\\
+$\mathsf{sk}_j := (r,s_j):=(r,\mathsf{msk}_j+\delta)$ \\
+\Return $(\mathsf{sk}_j,a)$
+\end{algo}
+
+\begin{algo}{$\mathsf{PTrans}(\mathsf{st},P,R,\mathcal{S},\mathcal{T})$}
+\textbf{Party} $j$\;
+
+\textbf{parse} $\mathcal{S}$ as $\{\,(\mathsf{sk}_{ij}=(r_i,s_{ij}),\,a_i)\,\}_{\,i\in \mathcal{S}}\;$
+
+\textbf{parse} $\mathcal{T}$ as $\{\,(\mathsf{mpk}_i,\,a_i')\,\}_{\,i\in \mathcal{T}}\;$
+
+\For{$i \in \mathcal{T}$}{
+  $r_i' \leftarrow \mathsf{H(trnc)};\quad \delta_i' \leftarrow \mathsf{H'(trnc)}$\;
+  
+  $\mathsf{pk}_i' \gets \mathsf{mpk}_i \;+\; \mathsf{DLT.KGen}(\delta_i')$\;
+  
+  $\mathsf{cm}_i' \gets \Gamma.\mathsf{Com}(a_i';\, r_i')$\;
+  
+  $\mathsf{ac}_i' \gets (\mathsf{pk}_i',\, \mathsf{co}_i')$\;
+  
+  $\mathsf{tk}_i \gets (r_i',\, \delta_i',\, a_i')$\;
+}
+
+$\{\mathsf{ac}_i\}_{i\in U} \gets \mathsf{StExt}(\mathsf{st})$\;
+
+$\mathcal{AC}_R \gets \{\mathsf{ac}_i\}_{i\in R}$\;
+$\mathcal{AC}_T \gets \{\mathsf{ac}_i'\}_{i\in \mathcal{T}}$\;
+
+$\mathcal{Z}_{\bar{\mathcal{S},j}} \gets \{\, \mathsf{DLT.Eval}(s_{i,j})\,\}_{\,\psi_{\mathcal{S}}(i)\in \bar{\mathcal{S}}}$\;
+
+$\mathsf{stmt}_1 \gets \big(\, \mathcal{AC}_R,\, \mathcal{Z}_{\bar{\mathcal{S}},j}\big)$\;
+
+$\mathsf{wit}_1 \gets \big( \{(\mathsf{sk}_{i,j},a_i)\}_{i\in \mathcal{S}}\big)$\;
+
+$\mathsf{stmt}_2 \gets \big(P,\, \mathcal{AC}_R,\, \mathcal{AC}_T\big)$\;
+
+$\mathsf{wit}_2 \gets \big( \{a_i\}_{i\in \mathcal{S}},\ \{(\mathsf{mpk}_i,\mathsf{tk}_i,a_i')\}_{i\in \mathcal{T}} \big)$\;
+
+$\pi_1 \gets \Pi.\mathsf{Prove}(\mathsf{crs},\, \mathsf{stmt}_1,\, \mathsf{wit}_1)$\;
+
+$\pi_2 \gets \Pi.\mathsf{Prove}(\mathsf{crs},\, \mathsf{stmt}_2,\, \mathsf{wit}_2)$\;
+
+$\mathsf{tx} \gets (P,\, R,\, \mathcal{AC}_T,\, \mathcal{Z}_{\bar{\mathcal{S}},j},\, \pi_1,\pi_2)$\;
+
+$\mathsf{TK} \gets \{\mathsf{tk}_i\}_{i\in \mathcal{T}}$\;
+
+\Return $(\mathsf{tx},\, \mathsf{TK})$\;
+\end{algo}
+
+\begin{algo}{$\mathsf{Combine}$}
+\end{algo}
+
+\begin{algo}{$\mathsf{StExt}(\mathsf{st})$}
+% \textbf{parse} $\mathsf{st}$ as $(A\!C_U,Z_U)$ \\
+% \textbf{return} $A\!C_U$
+\end{algo}
+
+\begin{algo}{$\mathsf{TExt}(\mathsf{tx})$}
+% \textbf{parse} $\mathsf{tx}$ as $(P,R,A\!C_T,Z_{gS},\pi)$ \\
+% \textbf{return} $A\!C_T$
+\end{algo}
+
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}
+
+\begin{algo}{$\mathsf{Vf}(\mathsf{st},\mathsf{tx})$}
+% \textbf{parse} $\mathsf{st}$ as $(A\!C_U,Z_U)$ \\
+% \textbf{parse} $A\!C_U$ as $\{ac_i\}_i$ \\
+% \textbf{parse} $\mathsf{tx}$ as $(P,R,A\!C_T,Z_{gS},\pi)$ \\
+% $A\!C_R := \{ac_i\in R\}$ \\
+% $\mathsf{stmt} := (P,A\!C_R,A\!C_T,Z_{gS})$
+% \[
+% \left\{
+% \begin{array}{l}
+% P\in P \\
+% R\subseteq U\\
+% I\subseteq U\\
+% \Pi.\mathsf{Vf}(\mathsf{crs},\mathsf{stmt},\pi)=1\\
+% Z_{gS}\cap Z_U=\emptyset
+% \end{array}
+% \right.
+% \]
+% If all hold then:
+% \[
+% \mathsf{st}' := (A\!C_U\cup A\!C_T,\, Z_U\cup Z_{gS})
+% \]
+% \textbf{return} $(1,\mathsf{st}')$, else \textbf{return} $(0,\mathsf{st})$.
+\end{algo}
+
+\begin{algo}{$\mathsf{SrcChk}(ac,\mathsf{sk},a)$}
+% \textbf{parse} $ac$ as $(\mathsf{pk},co)$ \\
+% \textbf{parse} $\mathsf{sk}$ as $(\tau,s)$ \\
+% \[
+% \mathsf{pk}' := \Lambda.\mathsf{KGen}(s),\qquad
+% co = \Gamma.\mathsf{Com}(a;r)
+% \]
+% \textbf{return} $(\mathsf{pk}'{=}\mathsf{pk})$
+\end{algo}
+
+\begin{algo}{$\mathsf{TgtChk}(ac,\mathsf{mpk},\mathsf{tk},a')$}
+% \textbf{parse} $ac$ as $(\mathsf{pk},co)$ \\
+% \textbf{parse} $\mathsf{tk}$ as $(\tau,\delta)$
+% \[
+% \left\{
+% \begin{array}{l}
+% a = a' \\
+% co = \Gamma.\mathsf{Com}(a;r)
+% \end{array}
+% \right.
+% \]
+% \textbf{return} (accept / reject)
+\end{algo}
+
+\end{minipage}
+
+
+
+
+
+

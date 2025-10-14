@@ -1,0 +1,55 @@
+name: Build PDF and Sync to Overleaf
+
+on:
+  push:
+    branches: [ master ]       # <-- changed from main → master
+  workflow_dispatch:           # allow manual runs
+
+jobs:
+  build-pdf:
+    name: Build LaTeX PDF
+    runs-on: ubuntu-latest
+    env:
+      MAIN_TEX: crosschain-dex.tex
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Compile LaTeX
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: ${{ env.MAIN_TEX }}
+          cache: true
+
+      - name: Rename PDF to DEX.pdf
+        shell: bash
+        run: |
+          mkdir -p build
+          cp "${{ env.MAIN_TEX%.tex }}.pdf" build/DEX.pdf
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEX-PDF
+          path: build/DEX.pdf
+          if-no-files-found: error
+
+  sync-to-overleaf:
+    name: Sync to Overleaf
+    needs: build-pdf
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Push to Overleaf master
+        env:
+          OVERLEAF_URL:   ${{ secrets.OVERLEAF_URL }}
+          OVERLEAF_USER:  ${{ secrets.OVERLEAF_USER }}
+          OVERLEAF_TOKEN: ${{ secrets.OVERLEAF_TOKEN }}
+        run: |
+          git config user.name  "github-actions"
+          git config user.email "actions@github.com"
+          git remote add overleaf "https://${OVERLEAF_USER}:${OVERLEAF_TOKEN}@${OVERLEAF_URL#https://}"
+          git push --force-with-lease overleaf HEAD:master
+          

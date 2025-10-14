@@ -2,8 +2,8 @@ name: Build PDF and Sync to Overleaf
 
 on:
   push:
-    branches: [ master ]      
-  workflow_dispatch:           
+    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   build-pdf:
@@ -25,7 +25,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p build
-          cp "${{ env.MAIN_TEX%.tex }}.pdf" build/DEX.pdf
+          BASENAME="${MAIN_TEX%.tex}"
+          cp "$BASENAME.pdf" build/DEX.pdf
 
       - name: Upload PDF artifact
         uses: actions/upload-artifact@v4

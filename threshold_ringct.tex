@@ -74,7 +74,7 @@ This abstraction preserves the primary security goal of traditional linkability 
 
 
 \subsection{Construction}
-In general, the design involves two types of transactions: threshold and standard (non-threshold) transactions. Within the context of a DEX, freeze transactions temporarily lock user funds by transferring them to addresses governed by threshold signature schemes (threshold transactions). This mechanism ensures that no single party can unilaterally access the funds. Instead, a quorum of threshold servers must collaboratively generate valid signatures to authorize subsequent transactions, thereby finalizing the exchange securely and collectively. 
+In general, the design involves two types of transactions: threshold and standard (non-threshold) transactions. Within the context of a DEX, freeze transactions temporarily lock user funds by transferring them to addresses governed by threshold signature schemes (threshold transactions). This guarantees that no single party can unilaterally access the funds. Instead, a quorum of threshold servers must collaboratively generate valid signatures to authorize subsequent transactions, thereby finalizing the exchange securely and collectively. 
 
 Next, we describe the construction of a $t$-of-$n$ threshold RingCT scheme $\Omega^{(t,n)}$ with algorithms
 \[
@@ -120,7 +120,7 @@ while the account amount $a$ is committed in a commitment:
 \paragraph{Transactions.}
 To form a transaction, each party $j$ holding a share of the secret key computes the partial tag
     \[
-        \tau_{i,j} := \mathsf{DLT.PEval}(\{s_{i,j}\}),
+        \tau_{i,j} := \mathsf{DLT.PEval}(s_{i,j}),
     \]
    
 where $s_{i,j} := \mathsf{msk}_{i,j} + \delta_i$ are the effective secret keys for source accounts $i \in S$. 
@@ -134,14 +134,14 @@ Next, sender $j$ generates new target accounts $\mathsf{ac}'_i$ with associated 
 
 Finally, sender $j$ constructs a non-interactive proof for the relation:
 \[
-\mathcal{R}_1(\mathsf{stmt}, \mathsf{wit}) := 
+\mathcal{R}_1(\mathsf{stmt}_{1,j}, \mathsf{wit}_{1,j}) := 
 \begin{cases}
-\tau_{\varphi_{\mathcal{S}}(i),j} = \mathsf{DLT.Eval}(s_{i,j}) & \forall i \in \mathcal{S} \\[4pt]
+\tau_{\varphi_{\mathcal{S}}(i),j} = \mathsf{DLT.PEval}(s_{i,j}) & \forall i \in \mathcal{S} \\[4pt]
 \mathsf{SrcChk}(\mathsf{ac}_i, \mathsf{sk}_{i,j}, a_i) = 1 & \forall i \in \mathcal{S} \\[4pt]
 \end{cases}
 \]
 \[
-\mathcal{R}_2(\mathsf{stmt}, \mathsf{wit}) := 
+\mathcal{R}_2(\mathsf{stmt}_{2}, \mathsf{wit}_{2}) := 
 \begin{cases}
 S \subseteq R \\[4pt]
 \mathsf{TgtChk}(\mathsf{ac}'_i, \mathsf{mpk}_i, \mathsf{tk}_i, a'_i) = 1 & \forall i \in \mathcal{T} \\[4pt]
@@ -205,25 +205,25 @@ $\{\mathsf{ac}_i\}_{i\in U} \gets \mathsf{StExt}(\mathsf{st})$\;
 $\mathcal{AC}_R \gets \{\mathsf{ac}_i\}_{i\in R}$\;
 $\mathcal{AC}_T \gets \{\mathsf{ac}_i'\}_{i\in \mathcal{T}}$\;
 
-$\mathcal{Z}_{\bar{\mathcal{S},j}} \gets \{\, \mathsf{DLT.Eval}(s_{i,j})\,\}_{\,\psi_{\mathcal{S}}(i)\in \bar{\mathcal{S}}}$\;
+$\mathcal{Z}_{\bar{\mathcal{S},j}} \gets \{\, \mathsf{DLT.PEval}(s_{i,j})\,\}_{\,\psi_{\mathcal{S}}(i)\in \bar{\mathcal{S}}}$\;
 
-$\mathsf{stmt}_1 \gets \big(\, \mathcal{AC}_R,\, \mathcal{Z}_{\bar{\mathcal{S}},j}\big)$\;
+$\mathsf{stmt}_{1,j} \gets \big(\, \mathcal{AC}_R,\, \mathcal{Z}_{\bar{\mathcal{S}},j}\big)$\;
 
-$\mathsf{wit}_1 \gets \big( \{(\mathsf{sk}_{i,j},a_i)\}_{i\in \mathcal{S}}\big)$\;
+$\mathsf{wit}_{1,j} \gets \big( \{(\mathsf{sk}_{i,j},a_i)\}_{i\in \mathcal{S}}\big)$\;
 
 $\mathsf{stmt}_2 \gets \big(P,\, \mathcal{AC}_R,\, \mathcal{AC}_T\big)$\;
 
 $\mathsf{wit}_2 \gets \big( \{a_i\}_{i\in \mathcal{S}},\ \{(\mathsf{mpk}_i,\mathsf{tk}_i,a_i')\}_{i\in \mathcal{T}} \big)$\;
 
-$\pi_1 \gets \Pi.\mathsf{Prove}(\mathsf{crs},\, \mathsf{stmt}_1,\, \mathsf{wit}_1)$\;
+$\pi_{1,j} \gets \Pi.\mathsf{Prove}(\mathsf{crs},\, \mathsf{stmt}_{1,j},\, \mathsf{wit}_{1,j})$\;
 
 $\pi_2 \gets \Pi.\mathsf{Prove}(\mathsf{crs},\, \mathsf{stmt}_2,\, \mathsf{wit}_2)$\;
 
-$\mathsf{tx} \gets (P,\, R,\, \mathcal{AC}_T,\, \mathcal{Z}_{\bar{\mathcal{S}},j},\, \pi_1,\pi_2)$\;
+$\mathsf{tx}_{j} \gets (P,\, R,\, \mathcal{AC}_T,\, \mathcal{Z}_{\bar{\mathcal{S}},j},\, \pi_{1,j},\pi_2)$\;
 
 $\mathsf{TK} \gets \{\mathsf{tk}_i\}_{i\in \mathcal{T}}$\;
 
-\Return $(\mathsf{tx},\, \mathsf{TK})$\;
+\Return $(\mathsf{tx}_j,\, \mathsf{TK})$\;
 \end{algo}
 
 \begin{algo}{$\mathsf{Combine}$}

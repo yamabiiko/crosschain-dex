@@ -25,7 +25,7 @@ In case other poolers want to collude to prevent a party from withdrawing their 
 In case other poolers want to collude with the withdrawer by signing a transaction where the balance is higher, the non-signing poolers should be able to trigger a refund / punishment from the staked balances.
 \paragraph*{Collateral.}
 Suppose the threshold signature requires $T$ signature shares out of $N$ parties. Then the minimum amount of collateral required to be staked in case of colluding poolers is $x \cdot \frac{N-T}{T}$, where $x$ is the amount of assets deposited for each secret key share.
-The maximum amount a single user can swap with the whole swap covered by a collateral is $x \cdot T-1$.
+The maximum amount a single user can swap with the whole swap covered by collateral is $x \cdot T-1$.
 \subsection{Syntax}
 \begin{definition} The validation functionality $\smartcontract_{\mathsf{dex}}$ is defined by the following set of algorithms.
 \begin{itemize}[topsep=0pt, itemsep=0pt, leftmargin=2em]

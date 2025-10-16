@@ -1,23 +1,46 @@
+
 % TeX root = atomic-swaps.tex
 
-\section{Decentralized exchange}
+\section{Cross-chain decentralized exchange}
 
-\paragraph*{Setting.} The system is composed by a set of liquidity providers $\mathcal{L}$ which deposit coins in so called \textit{liquidity pools}, where each pool $\mathcal{P}_i$ corresponds to assets from a different chain $\mathcal{B}_i$.  Clients $\mathcal{C}$ wanting to exchange tokens from a ledger $\mathbb{B}_a$ to another $\mathbb{B}_b$ can do so by initiating the protocol with the DEX system, transferring the assets $\mathsf{pk}_{\mathbb{B}_a}$ to the corresponding pool $\mathcal{P}_a$, and eventually receveing the corresponding assets from the matching pool $\mathcal{P}_b$ into their $\mathsf{pk}_{\mathbb{B}_b}$.
+While atomic swaps are an important and secure class of protocols, their adoption remains constrained by usability limitations. In most designs, users must stay online throughout the whole execution of the protocol to ensure safety of their funds. Moreover, since funds are commonly transferred into an "escrowed" wallet or account, each swap requires two on-chain confirmations per blockchain involved,  extending the protocol execution time even longer. This requirements are detrimental to the user experience, making atomic swaps appealing only for technical users or in scenarios where secure high-volume trades need to be settled in a decentralized fashion.
+Outside of direct peer-to-peer interactions—whether in physical or digital contexts—trading is largely restricted to centralized exchanges and payment services. Such a heavy reliance on centralized infrastructure undermines both the advantages and the philosophy of decentralized finance, motivating the need for decentralized exchange systems that can combine security with usability.
 
-\paragraph*{Smart contract setup.}
-In order to setup the protocol, the liquidity providers $\mathcal{L}$ run a pre-processing algorithm jointly executing a threshold signature scheme $\Pi.\mathsf{TDS}$ generate a jointly controlled public key pair $\mathsf{poolpk}_i$, $\mathsf{poolsk}_i$ for each chain $\mathbb{B}_i$.  
-Finally, they all deposit as a collateral $\mathsf{amnt}$ to the smart-contract address $\mathsf{scpk}$ on chain $\mathcal{B}_sc$.
-\paragraph*{Exchange}
-\begin{enumerate}
-	\item A client $\client$ intiliazes an exchange by sending the message $\msg_1 := (\tx^{\client \rightarrow \pool}_{\chain_a}, \pk_{\chain_b}, \pk_\client)$.
-	\item If the transaction data in $\tx^{\client \rightarrow \pool}_{\chain_a}$ is accepted, the server proceeds to generate the unsigned transaction $\tx^{\pool \rightarrow \client}_{\chain_b})$ paying an amount relative to the swap request and the current exchange rate.
-	\item The client verifies the respective validity of the amounts and targets of the transaction, and if accepted it proceeds to sign the tuple $\msg_2 := (\tx^{\client \rightarrow \pool}_{\chain_a}, \tx^{\pool \rightarrow \client}_{\chain_b}, \pk_{\chain_b}, \pk_\client)$, sending the signature $\sigma^{\msg_2}_{\client}$.
-	\item The server verifies the tuple $\msg_2$ and the signature $\sigma^{\msg_2}_{\client}$, and similarly signs the tuple and sends the signature $\sigma^{\msg_2}_{\swappers}$.
-	\item The server waits until $\tx^{\client \rightarrow \pool}_{\chain_a}$ is confirmed, and proceeds to respectively (threshold) sign and publish $\tx^{\pool \rightarrow \client}_{\chain_b}$, possibly exchanging the signature to the client.
-\end{enumerate}
-\paragraph*{Refund.} 
-If the user does not receive a valid signature or detect the transaction, they can request a refund to the validation service, providing a transcript of the exchange messages. The validation service first verifies that all the messages have been signed by both the client $\client$ and the swappers $\swappers$, and that $\tx^{\client \rightarrow \pool}_{\chain_a}$ has been confirmed on $\chain_a$, and early aborts otherwise. It then proceeds to ask the swappers $\swappers$ to provide valid signature shares (or a full signature) on $\tx^{\pool \rightarrow \client}_{\chain_b}$. If the validation service can retrieve the signature, it forwards it to the user. Otherwise, it authorizes a refund using the staked assets of the detected cheating liquidity providers. \\
+\subsection{Introduction}
+
+A decentralized exchange (DEX) is a peer-to-peer trading protocol that enables users to exchange digital assets without reliance on a centralized intermediary. Instead of delegating custody to a trusted third party, participants retain full control of their private keys and interact directly through smart contracts or cryptographic protocols. The defining property of a DEX is that trade execution and settlement occur in a trustless and permissionless manner, such that no single entity can censor, confiscate, or arbitrarily manipulate the exchange process.
+
+In practice, decentralized exchanges (DEXs) implement cryptographic and protocol-level mechanisms that allow asset transfers to be executed without reliance on a trusted intermediary. Orders or liquidity commitments are either recorded on-chain or distributed across a peer-to-peer network, and trades are settled atomically: either both counterparties receive the agreed-upon assets, or the transaction aborts without effect. This atomicity property ensures that no participant can incur unilateral loss of funds, even in the presence of network delays or adversarial behavior.
+
+A widely adopted design in modern DEXs is the \textbf{liquidity pool architecture}, in which a certain set of users—referred to as \textit{liquidity providers} (LPs)—deposit pairs of assets into a pool governed by an algorithmic policy, usually enforced through smart contracts. Traders then interact directly with the pool, while liquidity providers earn a fraction of transaction fees as compensation for providing assets.  A trade involving an asset pair $a$, $b$ is executed by depositing asset $a$ into the pool, and receiving the corresponding asset $b$. The pool's governing policy guarantees both the atomic execution of the trades and fair distribution of the fees among the liquidity providers. This ensure that no counterparty can unilaterallly misappropriate funds. 
+The canonical example of this architecture is \textbf{Uniswap}, one of the most widely adopted automated market maker (AMM) protocols. AMMs determine exchange rates algorithmically as a function of pool reserves, rather through an external order book. In particular, Uniswap implements the constant product market making rule, defined as:
+\[
+x \cdot y = k
+\]
+where $x$ and $y$ represent the reserves of two assets in a pool, and $k$ is an invariant maintained by a smart contract. Any trade that increases the reserve of one asset must proportionally decrease the reserve of the other, thereby determining the exchange rate implicitly from the ratio of reserves.
+
+Alternative approaches to price determination in DEXs rely on external information sources. For example, some systems incorporate price oracles, which provide exchange rates derived from centralized markets or decentralized oracle networks. While such designs broaden the flexibility of decentralized trading protocols, the specifics of price-setting mechanisms fall outside the scope of this work. The focus of this work is on the challenges of cross-chain interoperability and the associated security properties of asset exchange protocols.
+
+It is important to note that the vast majority of existing DEX deployments are restricted to \textbf{intra-chain trading}, meaning that only assets residing on the same blockchain can be exchanged. A key limitation arises from the fact that liquidity pools require assets to be deposited into and managed by on-chain smart contracts, which inherently bind the pool to a single ledger. As a result, assets cannot be natively transferred across heterogeneous blockchains—for example, between Ethereum and Bitcoin without resorting to additional bridging mechanisms that are costly, complex, and, in many cases, insecure.
+
+These limitations motivate the exploration of whether a more general and secure solution can be realized—one that is agnostic to the specific blockchain infrastructure and applicable even to privacy-preserving ledgers such as Monero and Zcash.
+
+\subsection{Pool based cross-chain DEX}
+We describe a cross-chain decentralized exchange which operates in the pool setting.
+The system is composed by a set of liquidity providers $\mathcal{L}$ which deposit coins in \textit{liquidity pools}, where each pool $\mathcal{P}_i$ corresponds to assets from a different chain $\chain_i$.  Clients $\mathcal{C}$ wanting to exchange tokens from a ledger $\chaina$ to another $\chainb$ can do so by initiating the exchange protocol, transferring the assets from their own address $\mathsf{pk}_{\chaina}$ to the corresponding pool $\mathcal{P}_{\chaina}$, and receiving the corresponding assets from the matching pool $\mathcal{P}_{\chainb}$ into their $\mathsf{pk}_{\chainb}$. \
+
+\paragraph*{Pool setting and rewards.}
+We note that different pool configurations are possible, but in this work we describe a protocol in which all liquidity providers setup the same amount on all the chains present in the exchange. In this settings, liquidity providers can withdraw the earned fees in proportional to the assets that they provided, without needing the system to keep track of individual fees.
+
+\paragraph*{Contest service setup.}
+In order to setup the protocol, the liquidity providers $\mathcal{L}$ run a pre-processing algorithm jointly execute a threshold signature scheme $\Sigma$ generating a jointly controlled public key pair $\pk^{\pool_i}$, $\sk^{\pool_i}$ for each chain $\mathbb{B}_i$.
+Finally, they all deposit as a collateral $\mathsf{amnt}$ to the contest contract service $\mathsf{CS}$ on chain $\mathcal{B}_sc$.
+We leave the setup functionality construction for future work.
+
+\paragraph*{Client refund.}
+If a user does not detect a confirmed verification for the desired swap, they can request a refund to the contest service, providing the exchange registration message together with the client's and liquidity provider signatures. The contest service first verifies that the swap request message has been signed by both the client $\client$ and the $\swappers$. and that $\tx^{\client \rightarrow \pool}_{\chaina}$ has been confirmed on $\chaina$, and early aborts otherwise. It then proceeds to ask the swappers $\swappers$ to provide valid signature shares (or a full signature) on $\tx^{\pool \rightarrow \client}_{\chainb}$. If the validation service can retrieve the signature, it forwards it to the user. Otherwise, it authorizes a refund using the staked assets of the detected cheating liquidity providers. \\
 Because poolers might collude with a client if the exchange rate is not fair (i.e., by agreeing on sharing the profit), poolers that did not sign the transaction must be able to contest the transaction exchage rate to the smart contract and refund the difference.
+
 \paragraph*{Withdrawal.}
 Liquidity providers must be able to withdraw from each pool their originally deposited assets plus the fees that they earned.  \\
 In order to withdraw their assets, poolers must be able to submit a withdrawal request to the network signed with their own key. They then create a transaction and request to threshold sign it, with other poolers aborting if the balance amount is incorrect. \\
@@ -25,31 +48,20 @@ In case other poolers want to collude to prevent a party from withdrawing their 
 In case other poolers want to collude with the withdrawer by signing a transaction where the balance is higher, the non-signing poolers should be able to trigger a refund / punishment from the staked balances.
 \paragraph*{Collateral.}
 Suppose the threshold signature requires $T$ signature shares out of $N$ parties. Then the minimum amount of collateral required to be staked in case of colluding poolers is $x \cdot \frac{N-T}{T}$, where $x$ is the amount of assets deposited for each secret key share.
-The maximum amount a single user can swap with the whole swap covered by collateral is $x \cdot T-1$.
-\subsection{Syntax}
-\begin{definition} The validation functionality $\smartcontract_{\mathsf{dex}}$ is defined by the following set of algorithms.
-\begin{itemize}[topsep=0pt, itemsep=0pt, leftmargin=2em]
-    \item $\mathbf{0/1} \gets \mathbf{Setup}()$: Wait until all poolers have deposited the collateral $\amnt$
-    \item $(\tx, \sigma) \gets \mathbf{ForceSwap}(T_\mathsf{swap}, \pk_{\chain_{\smartcontract}})$: The $\mathsf{ForceSwap}$ algorithm takes as input the transcript of the swap protocol $T_\mathsf{swap} = (\msg_1, \msg_2, ...)$ and a refund address $\pk_{\chain_{\smartcontract}}$. The algorithm verifies that each message in the transcript is correctly signed by the corresponding party, and that the transaction $\tx^{\client \rightarrow \pool}_{\chain_a}$ provided by the client $\client$ is confirmed, early aborting otherwise. It then proceeds to ask the participating set of liquidity providers $\swappers$ to provide the threshold signature shares for the transaction $\tx^{\pool \rightarrow \client}_{\chain_b}$. The algorithm then either outputs the complete signature $\sigma^{\pool \rightarrow \client}_{\chain_b}$ if it receives enough shares or issues a refund transaction to the provided refund address $\tx^{\smartcontract \rightarrow \client}_{\chain_\smartcontract}$, paying with the staked assets of the uncooperative liquidity providers and outputing it alongside its signature $\tx^{\smartcontract \rightarrow \client}_{\chain_\smartcontract}$
-    \item $(\tx, \sigma) \gets \mathbf{Withdraw}(T_\mathsf{withdraw}, \pk_{\chain_{\smartcontract}})$:
-    \item $(\tx, \sigma) \gets \mathbf{ForceWithdraw}(T_\mathsf{withdraw}, \pk_{\chain_{\smartcontract}})$: The $\mathsf{ForceWithdraw}$ algorithm takes as input the transcript of the withdrawal protocol $T_\mathsf{swap} = (\msg_1, \msg_2, ...)$ and a refund address $\pk_{\chain_{\smartcontract}}$. The algorithm verifies that each message in the transcript is correctly signed by the corresponding party. It then proceeds to ask the set of liquidity providers to provide a threshold signature on the withdraw transaction $\tx^{\pool \rightarrow \mathcal{L}}_{\chain_a}$.  The algorithm then either outputs the complete signature $\tx^{\pool \rightarrow \mathcal{L}}_{\chain_a}$ if it receives enough shares or issues a refund transaction to the provided refund address $\tx^{\smartcontract \rightarrow \mathcal{L}}_{\chain_\smartcontract}$, paying with the staked assets of the uncooperative liquidity providers and outputing it alongside its signature $\tx^{\smartcontract \rightarrow \mathcal{L}}_{\chain_\smartcontract}$
-    \item $(0/1) \gets \mathbf{PunishWithdraw}(T_\mathsf{withdraw})$: The $\mathsf{PunishWithdraw}$ algorithm takes as input the transcript of the withdrawal protocol $T_\mathsf{withdraw} = (\msg_1, \msg_2, ...)$. 
-    \item $(0/1) \gets \mathbf{PunishSwap}(T_\mathsf{swap})$: The $\mathsf{PunishSwap}$ algorithm takes as input the transcript of the withdrawal protocol $T_\mathsf{swap} = (\msg_1, \msg_2, ...)$.
-\end{itemize}
-\end{definition}
+The maximum amount a single user can swap with the whole swap covered by a collateral is $x \cdot T-1$.
 
-%\begin{itemize}
-%	\item the message $\msg_1 := ( \pk_{\chain_a}, \pk_{\chain_b}, \amnt_a, \amnt_b, \pk_\client)$ along with the signatures $\sigma^{\msg_1}_\client$ and $\sigma^{(\msg_1, \sigma^{\msg_1}_\client)}_{\swappers}$ of the client and the pool, respectively.
-%	\item the message $\msg_2 := ( \tx^{\client \rightarrow \pool}_{\chain_a}, \tx^{\pool \rightarrow \client}_{\chain_b} )$ and the signatures $\sigma^{\msg_2}_{\swappers}$, $\sigma^{\client \rightarrow \pool}_{\chain_a}$ on transaction $\tx^{\client \rightarrow \pool}$.
-% 	\item a refund address $\pk_{\chain_{\smartcontract}}$
-%\end{itemize}
 \subsubsection{Building blocks.}
 \paragraph*{Threshold signatures}
-Transaction need to be authorized from a consensus of liquidity providers. Such a functionality can be achieved with the help of threshold signatures, described in section 3. Here we describe a protocol, run by a liquidity provider $\swappers_c$, acting as a "coordinator", together with all other liquidity providers.
-\subsubsection{Transaction verification}
-In order to avoid honesty assumption for liquidity providers or other parties, we must use realize a functionality that can be run as a smart contract (or realized as part of a ledger functionality) which can prove the confirmation of transaction for heterogeneous blockchains. \
-We utilize the technique described in \cite{zkbridge} to validate transaction confirmation efficiently. We report the light client protocol and verification service.
-
+Transaction need to be authorized from a consensus of liquidity providers. Such a functionality can be achieved with the help of threshold signatures, described in section 3. 
+\paragraph*{Blockchain interface.}
+We utilize the blockchain syntax defined in Section 3. In order to obtain an ordered vector of transactions to be used in vector commitments, we further define the following helper method.
+\begin{itemize}[topsep=0pt, itemsep=0pt, leftmargin=2em]
+    \item $(\tx_1, ..., \tx_n) \gets \textbf{GetTxVec}(\st, n)$: On input takes a blockchain state $\st$ and outputs a vector containing all the transactions included in the latest block at the given epoch $n$.
+\end{itemize}
+\paragraph*{Transaction verification}
+In order to avoid honesty assumptions for liquidity providers or other parties, we must use realize a functionality that can be run as a smart contract (or realized as part of a ledger functionality) which proves the confirmation of transaction for a generic blockchains. \
+We utilize the technique described in \cite{zkbridge} to validate transaction confirmation efficiently, and here report the slightly modified light client protocol and verification service.
+\vspace{0.5em}
 \begin{definition}[Light client protocol]
 A light client protocol enables a node to synchronize the block headers of the state of the
 blockchain. Suppose all block headers in party $P$’s local view are $\{ \header_i \}^P_{i \in R}$, 
@@ -60,7 +72,7 @@ the light client protocol satisfies following properties:
         \item \textbf{Consistency}: as for any honest nodes $P_{\chaina}$ and $P{\chainb}$, and for any rounds of $R_0$ and $R_1$, it must be satisfied that either $\{ \header_i \}^{P_{\chaina}}_{i \in R_0}$ is a prefix of $\{ \header_i \}^{P{\chainb}}_{i \in R_1}$ or viceversa.
 \end{enumerate}
 \end{definition}
-
+\vspace{0.5em}
 
 \begin{definition}[Verification service $\mathsf{VS}$]
 A verification service $\mathsf{VS}_\chain$ parametired by the ledger $\chain$ is defined by the tuple of the following algorithms:
@@ -69,11 +81,22 @@ A verification service $\mathsf{VS}_\chain$ parametired by the ledger $\chain$ i
 \end{itemize}
 \end{definition}
 
-In order to verify that a transaction has been included in a specific headers, it simply suffices to compute the Merkle proof of the transaction of such header. We generalize the notion using vector commitments.
-
-\begin{itemize}
-    \item $(\tx_1, ..., \tx_n) \gets \textbf{GetTxVec}(\st)$
-\end{itemize}
+Parties agree on a common verification service $\mathsf{VS}$ for the chains involved in the exchange $\chaina$, $\chainb$ prior to the protocol execution. They verify that $\header^t := \mathsf{GetLastHeader}$ is a header included in the state of their local view $\st^{t'}$ of the respective chains.
+Now assume that a party wants to prove that a transaction $\tx$ has been included in $\chainb$ at a later state $\st^{t''}$. They execute the following logic:
+\begin{enumerate}
+	\item Parse the headers $\{ \header \}_{t',...,t''}$ from the state $\st^{t''}$.
+	\item Generate a proof proving that the validity of headers $\{ \header \}_{t',...,t''}$ extend the state $\st^{t'}$ with respect of a light client state $\mathsf{LCS}^{t'}$ by computing $\pi:= \mathsf{NIZK}.\mathsf{Prove}(\mathsf{LCS}^{t'}, \{ \header \}_{t',...,t''})$.
+	\item Update the headers at the verification contract by running $\mathsf{VS}.\mathsf{HeaderUpdate}(\pi, \{ \header \}_{t',...,t''})$
+	\item Generate the vector of transactions included at the block corresponding to header $t''$ by executing $(\tx_1, ..., \tx_n) \gets \textbf{GetTxVec}(\st, t'')$.
+	\item Get the index $I$ of the transaction $\tx$ in $(\tx_1, ..., \tx_n)$, and run $\pi_\tx := \mathsf{VC}.\mathsf{Open}((\tx_1, ..., \tx_n), I)$.
+\end{enumerate}
+Now any party can verify that the transaction $\tx$ has been included in $\chainb$ on state $\st^{t''}$ can verify that:
+\begin{enumerate}
+	\item Fetch the verified header from the verification service with $\header_{t''} \mathsf{VS}.\mathsf{GetHeader}(\pi, t'')$
+	\item Extract the root transaction commitment $\com$ from the header $\com := \parse \header_{t''}$
+	\item Verify that $\tx$ has been included in the vector of transaction with respect to $\com$  $\mathsf{VC}.\mathsf{Verify}(I, \com, \tx, \pi_\tx) = 1$
+\end{enumerate}.
+Note that we refer to vector commitments as a generalization of Merkle trees and Merkle proofs, which are almost universally used across blockchain implementations.
 
 \subsubsection{Contest service $\mathsf{CS}$}.
 
@@ -89,7 +112,12 @@ A contest service $\mathsf{CS}_\smartcontract$ for some ledger $\smartcontract$ 
     \end{itemize}
 \end{itemize}
 \end{definition}
+
 \subsubsection{Exchange protocol}
+
+We now describe the exchange protocol in \cref{fig:dex_exchange} for a client wanting to exchange from $\chaina$ to $\chainb$. The client $\client$ communicates with a coordinator $\coordinator$, whose role is to deal with the communication with all liquity providers $\swappers$. We note that, in practice, the $\coordinator$ can be one of the liquidity providers, an external server, or the client itself, and no additional trust assumption is made on the entity.
+The client $\client$ and the liquidity providers $\swappers$ agree, prior to the execution of the service, to a verification contract for $\chaina$ as stated above. Moreover, the $\client$ already knows the public keys of the service and pools. The client and liquidity providers use the signature scheme $\Pi_c$ to sign network messages when mentioned.
+
 \begin{figure}[H]
     \begin{minipage}[t]{0.5\textwidth}
     \begin{pchstack}[boxed]
@@ -97,13 +125,13 @@ A contest service $\mathsf{CS}_\smartcontract$ for some ledger $\smartcontract$ 
     \pseudocode{
         \text{Client $\client$}  \:\: \\[0.1\baselineskip ][\hline]
         \tx_{\chaina} := \mathsf{TxGen}_{\chaina}(\st, \pk_{\chaina}^\client, \pk_{\chaina}^\pool, \amnt_{\chaina}) \\
-	\send(\coordinator, \tx_{\chaina}, \pk_c^\client) \\
+	\send(\coordinator, \tx_{\chaina}, \pk_c^\client, \pk_{\chainb}^\client) \\
 	(\tx_{\chainb}, \rho) \gets \receive(\coordinator) \\
         \assert P(\tx_{\chaina}, \tx_{\chainb}) = 1 \\
         \exc := (\tx_{\chaina}, \tx_{\chainb}, \pk_c^\client, \rho) \\
         \sigma^\client_\exc := \Pi_c.\mathsf{Sg}(\sk_c^\client, \exc) \\
-        \send(\swappers, \exc, \sigma_\exc) \\
-	\sigma^{\coordinator}_\exc \gets \receive(\swappers_i) \\
+        \send(\coordinator, \exc, \sigma_\exc) \\
+	\sigma^{\coordinator}_\exc \gets \receive(\coordinator) \\
         \assert \Sigma_c.\mathsf{Verify}(\pk_c^\pool, \exc, \sigma^\pool_\exc) \\
         \sigma^\client_{\tx_{\chaina}} := \Pi_{\chaina}.\mathsf{Sg}(\sk_{\chaina}^\client, \tx_{\chaina}) \\
         \mathsf{TxPub}_{\chaina}(\tx_{\chaina}, \sigma^\client_{\tx_{\chaina}}) \\
@@ -116,7 +144,7 @@ A contest service $\mathsf{CS}_\smartcontract$ for some ledger $\smartcontract$ 
     \begin{pchstack}[boxed]
     \pseudocode{
 	\text{Coordinator $\coordinator$} \:\: \\[0.1\baselineskip ][\hline]
-        (\tx_{\chaina}, \pk_c^\client) \gets \receive(\client) \\
+        (\tx_{\chaina}, \pk_{\chainb}^\client, \pk_c^\client) \gets \receive(\client) \\
         \assert P(\tx_{\chaina}) = 1 \\
         \amnt_{\chainb} := \mathsf{Convert}(\chaina, \amnt_{\chaina}) \\
         \tx_{\chainb} := \mathsf{TxGen}_{\chainb}(st, \pk_{\chainb}^\pool, \pk_{\chainb}^\client, \amnt_{\chainb}) \\
@@ -140,8 +168,16 @@ A contest service $\mathsf{CS}_\smartcontract$ for some ledger $\smartcontract$ 
     \caption{Exchange protocol execution for a client $\client$ and a coordinator}
     \label{fig:dex_exchange}
 \end{figure}
+\paragraph*{Trade initialization.} To perform a trade, the client and the exchange need to verifiably agree on a pair of transaction. The client $\client$ preparsed the unsigned transaction $\tx_{\chaina}$ and sends it to the coordinator, which proceeds to validate against a set of predicates $P$. The predicate, in practice, might check that the request amount is below the maximum amount and that the recipient of the transaction is indeed $\pool^{\chain_a}$. The coordinator then generates a transaction on $\chainb$ paying from the pool's wallet to the client's address $\pk_{\chainb}^\client$, according to the exchange rate of the service. It then proceeds to send $(\tx_{\chaina}, \tx_{\chainb}$ to all the other liquidity providers, which commit to the signing round with if they agree to the trade, each performing the same verification as the coordinator.
+\paragraph*{Trade confirmation.}
+The coordinator now generates the signing round pre-signatures by combining all the pre-signatures shares with $\Sigma_{\chainb}.\mathsf{PreAgg}$, and sends it to the client together with $\tx_{\chainb}$. The client now similarly checks the transaction against its own set of predicates $P$, and if successful generate the exchange confirmation message $\mathsf{exc} := (\tx_{\chaina}, \tx_{\chainb}, \pk_c^\client, \rho)$. It signs $\exc$ and sends it to the coordinator, which proceeds to verify the signature and broadcasts the message to all liquidity providers, who in turn upon verification provide a threshold signature share of $\exc$. The coordinator combines the signatures with $\sigma^\pool_\exc := \Sigma_c.\mathsf{SignAgg}$, and forwards it to the client.
+\paragraph*{Trade finalization.}
+The client upon verification of $\sigma^\pool_\exc$ proceeds to publish $\tx_{\chaina}$, and the coordinator respectively waits its cofirmation. Once the transaction is conformed, it proceeds to threshold sign $\tx_{\chainb}$ and publish it on chain $\chainb$.
+
 \begin{figure}[H]
-    \begin{minipage}[t]{0.5\textwidth}
+    \centering
+    \begin{minipage}[t]{1\textwidth}
+    \centering
     \begin{pchstack}[boxed]
     \pseudocode{
         \text{Client $\client$}  \:\: \\[0.1\baselineskip ][\hline]
@@ -156,16 +192,12 @@ A contest service $\mathsf{CS}_\smartcontract$ for some ledger $\smartcontract$ 
         I := \{ I \in \{ 1,..,n \} \mid \mathsf{tx}_I = \tx_{\chaina} \} \\
         \pi_\tx := \mathsf{VC}.\mathsf{Open}((\mathsf{tx}_1, ..., \mathsf{tx}_l), I) \\
         T_\exc := (\exc, \sigma^\client_\exc, \sigma^\pool_\exc) \\
-        \mathsf{RS}.\contest(T_\exc, \pi_\tx, n, \pk_\smartcontract) \\
+        \mathsf{CS}.\contest(T_\exc, \pi_\tx, n, \pk_\smartcontract) \\
     }
     \end{pchstack}
     \end{minipage}%
     \caption{Contest protocol execution for a client $\client$}
     \label{fig:dex_refund}
 \end{figure}
-
-\subsection{Correctness}
-\subsection{Security}
-\subsection{Construction}
-
-\newpage
+\paragraph*{Contest and refund.}
+The exchange protocol, in case any routine times out or assertion fails prior to signing $\tx_{\chaina}$, aborts with no transaction occurring. After signing, if the transaction $\tx_{\chainb}$ does not get confirmed after some timeout, the client proceeds to call the contest protocol as in \cref{fig:dex_refund}. It updates the header of the verification contract $\mathsf{VS}$ and then generates a vector commitment proof, stating that $\tx_{\chaina}$ is a subvector with respect to a Merkle root commitment of a specified header $n$. It then submits the proof to the contest service contract $\mathsf{CS}$, which upon verification will either provides a full signature $\sigma^\pool_{\tx_{\chainb}}$ or a refund from the uncooperative liquidity providers.

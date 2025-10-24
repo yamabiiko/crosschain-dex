@@ -1,4 +1,18 @@
 % TeX root = atomic-swaps.tex
+% --- Optional helpers (put in your preamble) ---
+
+\newcommand{\G}{\mathbb G}
+\newcommand{\Zq}{\mathbb Z_q}
+\newcommand{\Prover}{\mathcal P}
+\newcommand{\Verifier}{\mathcal V}
+\newcommand{\Coord}{\mathcal C}
+\newcommand{\dstbind}{\mathsf{DST}_{\mathrm{bind}}}
+\newcommand{\dstchal}{\mathsf{DST}_{\mathrm{chal}}}
+\newcommand{\Hbind}{\mathsf{H}_{\mathrm{bind}}}
+\newcommand{\Hchal}{\mathsf{H}_{\mathrm{chal}}}
+\newcommand{\Hgrp}{\mathsf{H}_{\G}}
+\newcommand{\cm}{\mathsf{cm}}
+% \newcommand{\pk}{\mathsf{pk}}
 
 \section{Instantiation and Performance Evaluation}
 
@@ -8,6 +22,136 @@
 
 \paragraph{Tagging Scheme}
 \rnote{NPR DPRF instantiation}
+\begin{center}
+\fbox{%
+\parbox{0.96\linewidth}{%
+\textbf{\(\mathsf{DLT}\) interface.}
+\begin{itemize}
+  \item \(\mathsf{Setup}(1^\lambda) \to \mathsf{pp}\).
+  \item \(\mathsf{KGen}(\mathsf{pp},n,t)\to\{(\mathsf{pk}_j,\mathsf{sk}_j)\}_{j=1}^n\) with a \((t,n)\)-threshold sharing of a master \(\mathsf{sk}\).
+  \item \(\mathsf{PEval}(\mathsf{sk}_j)\to \tau_j\in \mathcal R\).
+  \item \(\mathsf{Combine}(\mathcal S,\{\tau_j\}_{j\in\mathcal S})\to \tau\in\mathcal R\).
+  \item \(\mathsf{Eval}(\mathsf{pp},\mathsf{sk})\to \tau\).
+\end{itemize}
+Here we instantiate \(\tau_j=\Hgrp(\mathsf{pk})^{s_j}\) and \(\tau=\prod_{j\in\mathcal S}\tau_j^{\lambda_j}= \Hgrp(\mathsf{pk})^{s}\).
+}%
+}
+\end{center}
+
+
+\begin{center}
+\fbox{%
+\parbox{0.96\linewidth}{%
+\textbf{\(\mathsf{ThresholdSrc}\)}~(FROST-style two-round $\Sigma$-proof; \emph{indistinguishable from single-prover}).
+
+\medskip
+\textbf{Public parameters{(\(\mathsf{crs}\))}.}
+Prime-order group $\G=\langle g\rangle$ with $|\G|=q$; Pedersen bases $g,h\in\G$ (so $\cm=g^{a}h^{r}$); hash-to-group $\Hgrp:\{0,1\}^\ast\!\to\G$; oracles $\Hbind,\Hchal$ be hash functions whose outputs are elements of $\mathbb{Z}_q^*$, with domain-separation strings $\dstbind,\dstchal$.
+
+\textbf{Statement(\(\mathsf{stmt}\)).}
+Aggregate public key $\mathsf{pk}\in\G$ and DPRF value $\tau\in\G$ with $\tau=\Hgrp(\mathsf{pk})^{s}$ for the secret $s$ underlying $\mathsf{pk}=g^{s}$; Pedersen commitment $\cm\in\G$.
+
+\textbf{Witness (\(\mathsf{wit}\)).}
+A coordinator $\Coord$ holds $(a,r)\in\Zq^2$ such that $\cm=g^{a}h^{r}$. Each signer $i\in\mathcal S$ (with $|\mathcal S|\ge t$) holds a share $s_i$ and its Lagrange coefficient $\lambda_i=\lambda_i(\mathcal S)$ (at $0$), so that $s=\sum_{i\in\mathcal S}\lambda_i s_i$.
+
+\medskip
+\textbf{Goal.} Output a single transcript $\Pi=(T_0,T_1,T_2,z_a,z_r,z_s)$ that verifies like a one-prover proof of
+\[
+\exists\,(a,r,s)\in\Zq^3:\quad \cm=g^{a}h^{r},\ \ \mathsf{pk}=g^{s},\ \ \tau=\Hgrp(\mathsf{pk})^{s}.
+\]
+
+\medskip
+\textbf{Protocol \(\langle\Prover(\mathsf{crs,stmt,\,wit}),\Verifier(\mathsf{crs,stmt})\rangle\):}
+
+\smallskip
+\textcolor{red}{Let $\Coord$ denote the coordinator, who may also be one of the signing participants}. Let $\mathcal S$ be an active set of signers (size $\ge t$) representing the participants selected for this signing round, and let $\pk$ denote the group public key. 
+Define $B = \langle (i, R_{1,i}, R_{2,i}) \rangle_{i \in \mathcal{S}}$ as the ordered list of participant identifiers, where each $P_i$ is associated with its index $i$, commitment values $(R_{1,i}, R_{2,i})$, and secret share $s_i$. 
+Let $\mathcal{L}_i$ denote the set of commitment values for $P_i$ that were published during the \textsf{Preprocess} stage. 
+Each identifier $i$ is linked with the commitments $(R_{1,i}, R_{2,i})$ posted by $P_i$ for this signing operation. 
+
+
+\smallskip
+\(\Prover\leftrightarrow\Verifier\): \roundlabel{Round 1 (nonce commitments).}
+\begin{itemize}
+  \item Each signer $i\in\mathcal S$ samples $\rho_{i,0},\rho_{i,1}\xleftarrow{\$}\Zq$ and computes
+  \[
+  R^{(g)}_{i,0}=g^{\rho_{i,0}},\quad R^{(g)}_{i,1}=g^{\rho_{i,1}},\qquad
+  R^{(H)}_{i,0}=\Hgrp(\mathsf{pk})^{\rho_{i,0}},\quad R^{(H)}_{i,1}=\Hgrp(\mathsf{pk})^{\rho_{i,1}}.
+  \]
+  It sends a commitment $C_i$ to these points (or the points themselves) to the coordinator $\Coord$.
+  \item $\Coord$ samples $\alpha,\beta_a\xleftarrow{\$}\Zq$, sets $T_0:=g^{\beta_a}h^{\alpha}$ (Pedersen opening nonce), and records $\{C_i\}_{i\in\mathcal S}$.
+\end{itemize}
+
+\smallskip
+\(\Prover,\Verifier\): \roundlabel{Binding coefficient and aggregate nonces.}
+\[
+b\ \leftarrow\ \Hbind\!\big(\dstbind,\mathsf{pk},\tau,\cm, T_0, \{C_i\}_{i\in\mathcal S}\big)\in\Zq.
+\]
+After reveal of the committed points,
+\[
+T_1\ :=\ \prod_{i\in\mathcal S} R^{(g)}_{i,0}\,\big(R^{(g)}_{i,1}\big)^{b},\qquad
+T_2\ :=\ \prod_{i\in\mathcal S} R^{(H)}_{i,0}\,\big(R^{(H)}_{i,1}\big)^{b}.
+\]
+
+\smallskip
+\(\Coord,\Verifier\): \roundlabel{Fiat–Shamir challenge.}
+\[
+c\ \leftarrow\ \Hchal\!\big(\dstchal,\cm,\mathsf{pk},\tau, T_0,T_1,T_2\big)\in\Zq.
+\]
+
+\smallskip
+\(\Prover\): \roundlabel{Per-share responses (parallel for all $i\in\mathcal S$).}
+\[
+z_{s,i}\ :=\ \rho_{i,0}+b\,\rho_{i,1}+c\,\lambda_i\,s_i\ \in\ \Zq.
+\]
+Each signer sends $z_{s,i}$ to $\Coord$.
+
+\smallskip
+\(\Coord\): \roundlabel{Aggregation and output.} \ttfamily{\textcolor{gray}{Aggregate and output.}}
+\[
+z_s\ :=\ \sum_{i\in\mathcal S} z_{s,i}\ =\ \Big(\textstyle\sum_{i}\rho_{i,0}+b\sum_{i}\rho_{i,1}\Big) + c\sum_{i}\lambda_i s_i\ =\ \beta + c\,s,
+\]
+where $\beta=\sum_{i}\rho_{i,0}+b\sum_{i}\rho_{i,1}$. Also set
+\[
+z_a\ :=\ \beta_a + c\,a,\qquad z_r\ :=\ \alpha + c\,r.
+\]
+Send the final transcript $\Pi=(T_0,T_1,T_2,z_a,z_r,z_s)$ to $\Verifier$.
+}%
+}
+\end{center}
+
+
+\begin{center}
+\fbox{%
+\parbox{0.96\linewidth}{%
+\textbf{\(\mathsf{ThresholdSrc.Verify}(\mathsf{crs},\mathsf{stmt},\Pi)\)}
+
+\medskip
+\textbf{Inputs.} $\mathsf{crs}$ as above; $\mathsf{stmt}=(\cm,\mathsf{pk},\tau)$; $\Pi=(T_0,T_1,T_2,z_a,z_r,z_s)$.
+
+\textbf{Computation.}
+\[
+c\ \leftarrow\ \Hchal\!\big(\dstchal,\cm,\mathsf{pk},\tau, T_0,T_1,T_2\big).
+\]
+
+\textbf{Checks.} Accept iff all hold in $\G$:
+\[
+g^{z_a}\,h^{z_r}\ \stackrel{?}{=}\ T_0\cdot \cm^{\,c}\quad\text{(Pedersen opening with hidden $a$)},
+\]
+\[
+g^{z_s}\ \stackrel{?}{=}\ T_1\cdot \mathsf{pk}^{c},\qquad
+\Hgrp(\mathsf{pk})^{z_s}\ \stackrel{?}{=}\ T_2\cdot \tau^{c}.
+\]
+}%
+}
+\end{center}
+
+
+
+
+
+
+
 
 \paragraph{2PC}
 

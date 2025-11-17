@@ -201,3 +201,55 @@ The client upon verification of $\sigma^\pool_\exc$ proceeds to publish $\tx_{\c
 \end{figure}
 \paragraph*{Contest and refund.}
 The exchange protocol, in case any routine times out or assertion fails prior to signing $\tx_{\chaina}$, aborts with no transaction occurring. After signing, if the transaction $\tx_{\chainb}$ does not get confirmed after some timeout, the client proceeds to call the contest protocol as in \cref{fig:dex_refund}. It updates the header of the verification contract $\mathsf{VS}$ and then generates a vector commitment proof, stating that $\tx_{\chaina}$ is a subvector with respect to a Merkle root commitment of a specified header $n$. It then submits the proof to the contest service contract $\mathsf{CS}$, which upon verification will either provides a full signature $\sigma^\pool_{\tx_{\chainb}}$ or a refund from the uncooperative liquidity providers.
+
+
+\subsection{UC functionality}
+
+\begin{center}
+\fbox{%
+\parbox{0.96\linewidth}{%
+{\Large \textbf{Functionality} $\mathcal{G}_{\mathsf{ledger}}$}  \\[1em]
+\smallskip
+\textbf{Parameters:} Integers \texttt{windowSize}, \texttt{Delay}; Algorithms $\mathsf{Validate}$, $\mathsf{ExtendPolicy}$. $\mathsf{Blockify}$, $\mathsf{TxExtract}$, P. Random distribution $\mathcal{X}$ \\
+\smallskip
+\textbf{Clock-time:} \\
+\smallskip
+\textbf{Variables and initialization:} The functionality intializes $\texttt{p\_state}$, $\texttt{l\_state}$, $\texttt{NxtBC}$, $\texttt{buffer} \gets \emptyset$ \\
+
+\begin{pchstack}[boxed]
+\begin{pcvstack}
+\pseudocode{
+    \mathsf{TxSubmit}(\mathsf{sid}, \texttt{tx})  \:\: \\[0.1\baselineskip ][\hline]
+    \texttt{txid} \sample \mathcal{X} \\
+    \mathsf{BTX} \gets (\mathsf{txid}, \texttt{tx}) \\
+    \pcif \mathsf{Validate}(\mathsf{BTX}, \texttt{l\_state}) = 1 \\
+    \t \texttt{buffer} \gets \texttt{buffer} \cup \mathsf{BTX} \\
+}
+\end{pcvstack}
+\qquad
+\qquad
+\begin{pcvstack}
+\pseudocode{
+    \mathsf{StateUpdate}  \:\: \\[0.1\baselineskip ][\hline]
+    (N, ls') \gets \mathsf{ExtendPolicy}(\texttt{l\_state}, \texttt{NxtBC}, \texttt{buffer}) \\
+    \assert N \neq \emptyset \\
+    \texttt{state} \gets \state | \mathsf{Blockify}(N) \\
+    \texttt{l\_state} \gets ls' \\
+    \pcfor \mathsf{BTX} \in \texttt{buffer} \\
+    \t \pcif \mathsf{Validate}(\mathsf{BTX}, \texttt{l\_state}) \\
+    \t\t \texttt{buffer} \gets \texttt{buffer} \setminus \mathsf{BTX}
+}
+\vspace{1em}
+\pseudocode{
+    \mathsf{ExtendPolicy}(\texttt{l\_state}, \texttt{NxtBC}, \texttt{buffer})  \:\: \\[0.1\baselineskip ][\hline]
+    N \gets \emptyset \\
+    \pcfor \mathsf{BTX} \in \texttt{NxtBC} \\
+    \t \texttt{aux} \gets \mathsf{TxExtract}(\texttt{tx}) \\
+    \t \pcif P(\aux, \texttt{tx}, \texttt{l\_state}) = 1 \\
+    \t\t N \gets N \cup \mathsf{BTX}
+}
+\end{pcvstack}
+\end{pchstack}
+}
+}
+\end{center}

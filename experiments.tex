@@ -28,9 +28,17 @@
 \textbf{\(\mathsf{DLT}\) interface.}
 \begin{itemize}
   \item \(\mathsf{Setup}(1^\lambda) \to \mathsf{pp}\).
-  \item \(\mathsf{KGen}(\mathsf{pp},n,t)\to\{(\mathsf{pk}_j,\mathsf{sk}_j)\}_{j=1}^n\) with a \((t,n)\)-threshold sharing of a master \(\mathsf{sk}\).
+  \item \(\mathsf{KGen}(\mathsf{pp},n,t)\to\{(\mathsf{pk}_j,\mathsf{sk}_j)\}_{j=1}^n\):
+        runs a \((t,n)\)-threshold {distributed key generation (DKG)} to share a master secret; 
+        outputs per-party keys \(\mathsf{sk}_j=s_j\in\mathbb Z_q\) and \(\mathsf{pk}_j=g^{s_j}\).
+ 
   \item \(\mathsf{PEval}(\mathsf{sk}_j)\to \tau_j\in \mathcal R\).
   \item \(\mathsf{Combine}(\mathcal S,\{\tau_j\}_{j\in\mathcal S})\to \tau\in\mathcal R\).
+  \[
+  \tau \;=\; \prod_{i\in\mathcal S}\tau_i^{\lambda_i}
+      \;=\; \mathsf{H}_{\G}(\mathsf{pk})^{\sum_i \lambda_i s_i}
+      \;=\; \mathsf{H}_{\G}(\mathsf{pk})^{s}.
+\]
   \item \(\mathsf{Eval}(\mathsf{pp},\mathsf{sk})\to \tau\).
 \end{itemize}
 Here we instantiate \(\tau_j=\Hgrp(\mathsf{pk})^{s_j}\) and \(\tau=\prod_{j\in\mathcal S}\tau_j^{\lambda_j}= \Hgrp(\mathsf{pk})^{s}\).
@@ -41,20 +49,66 @@ Here we instantiate \(\tau_j=\Hgrp(\mathsf{pk})^{s_j}\) and \(\tau=\prod_{j\in\m
 
 \subsection{Language and Argument for Spend Signature of Knowledge (Threshold Part)}
 % {Threshold RingCT}
-We produce a two–round threshold source proof with FROST-style orchestration that yields a \emph{single} Schnorr–style proof of knowledge for a source account. A quorum of account holders jointly prove knowledge of (i) the secret exponent underlying the aggregate public key $\mathsf{pk}$ and (ii) the opening $(a,r)$ of a Pedersen commitment $\cm=g^{a}h^{r}$. The proof also binds a linkability tag $\tau=\mathsf{H}_{\G}(\mathsf{pk})^{s}$ to the {same} exponent. The final transcript is indistinguishable from a one–prover Schnorr proof of
+
+\rnote{add language here}
+
+
+\rnote{the argument}
+We produce a threshold source proof with FROST-style orchestration that yields a \emph{single} Schnorr–style proof of knowledge for a source account. A quorum of account holders jointly prove knowledge of (i) the secret exponent underlying the aggregate public key $\mathsf{pk}$ and (ii) the opening $(a,r)$ of a Pedersen commitment $\cm=g^{a}h^{r}$. The proof also binds a linkability tag $\tau=\mathsf{H}_{\G}(\mathsf{pk})^{s}$ to the {same} exponent. The final transcript is indistinguishable from a one–prover Schnorr proof of
 \[
   \exists(a,r,s)\in\mathbb Z_q^3:\quad
   \cm=g^{a}h^{r}\ \wedge\ \mathsf{pk}=g^{s}\ \wedge\ \tau=\mathsf{H}_{\G}(\mathsf{pk})^{s}.
 \]
 
+\paragraph{Setup and shares.} The parties {run} \(\mathsf{DLT.KGen}(\mathsf{pp}, n, t)\), which executes a \((t,n)\)-threshold DKG and returns per-party keys
+\((\mathsf{pk}_i,\mathsf{sk}_i)\) with \(\mathsf{sk}_i=s_i\in\mathbb Z_q\) and \(\mathsf{pk}_i=g^{s_i}\).
+For any active set \(\mathcal S\) with \(|\mathcal S|\ge t\), let \(\lambda_i=\lambda_i(\mathcal S)\) denote the Lagrange coefficients at \(0\), and set
+\[
+  s=\sum_{i\in\mathcal S}\lambda_i s_i,\qquad \mathsf{pk}=g^{s}.
+\]
+
+
+All account holders know the same source account $\mathsf{ac} = (\mathsf{pk},\, \mathsf{cm})$, and token $\mathsf{tk} = (r,\, \delta,\, a)$, where $\cm=g^{a}h^{r}$. We fix a hash–to–group $\mathsf{H}_{\G}$, a binding hash $\mathsf{H}_{\mathrm{bind}}$, and a challenge hash $\mathsf{H}_{\mathrm{chal}}$ with distinct domain-separation tags.
+
+\paragraph{Preprocessing.}
+Following FROST, each signer $i$ precomputes single–use nonce bundles and publishes the corresponding commitment shares. For bundle index $j$, sample $(\rho^{(j)}_{i,0},\rho^{(j)}_{i,1})\leftarrow\mathbb Z_q^2$ and publish
+\[
+  R^{(g)}_{i,0}[j]=g^{\rho^{(j)}_{i,0}},\quad
+  R^{(g)}_{i,1}[j]=g^{\rho^{(j)}_{i,1}},\qquad
+  R^{(H)}_{i,0}[j]=\mathsf{H}_{\G}(\mathsf{pk})^{\rho^{(j)}_{i,0}},\quad
+  R^{(H)}_{i,1}[j]=\mathsf{H}_{\G}(\mathsf{pk})^{\rho^{(j)}_{i,1}}.
+\]
+An index becomes {spent at reveal time} and must never be reused. The preprocessing step is described in \Cref{fig:preprocess}.
+
+
+\paragraph{Sign.}
+The coordinator $\Coord$ selects $\mathcal S$, fetches one unused bundle from each $L_i$, and samples $(\alpha,\beta)\leftarrow\mathbb Z_q^2$ to set $T_0=g^{\alpha}h^{\beta}$ (for commitment opening proof). Each participant computes a partial tag $\tau_i\gets \mathsf{H}_{\G}(\mathsf{pk})^{s_i}$, the binding coefficient $b$, the aggregated nonce commitment $T_1,T_2$, and the joint Fiat–Shamir challenge $c$. Each signer then answers with a short NIZK (two–base Schnorr) $z_{s,i}$ proving knowledge of $s_i$ such that $g^{s_i}=\mathsf{pk}_i$ and $\mathsf{H}_{\G}(\mathsf{pk})^{s_i}=\tau_i$. After verifying all $z_{s,i}$, the coordinator computes consolidated tag $\tau = \mathsf{DLT.Combine}(\mathcal S,\{\tau_i\}_{i\in\mathcal S})$, aggregates $z_s=\sum_{i\in\mathcal S} z_{s,i}$ and finishes the opening responses $z_a=\alpha+c\,a$, $z_r=\beta+c\,r$. The session outputs the single transcript $\tau,\Pi=(T_0,T_1,T_2,z_a,z_r,z_s)$. The algorithms are detailed in \Cref{fig:sign}. 
+
+\paragraph{Verification.}
+Recompute $c$ and accept iff all the conditions in \Cref{fig:verify} are met. No per–party objects appear in $\Pi$, and its distribution matches that of a one–prover Schnorr proof for $(a,r,s)$ in the random–oracle model.
+
+
+
+
+
+
 \rnote{under writing...}
+replace account $\mathsf{ac} = (\mathsf{pk},\, \mathsf{cm})$
+index i for signer aslo in sec4
+$\Coord$ for coordinator unify across all text
+CheckTag
+CheckAmount
+instead of SrcCheck
+CheckAmount is in common part
+proofs of commitment remove from threshold part
+add Signatures of Knowledge to preliminaries
 
-\paragraph{Setup and shares.}
+\begin{figure}[t]
+\centering
+\framebox{
+\begin{minipage}{0.95\linewidth}
+$\mathsf{ThresholdRingCT.Preprocess}(i,\pi)$
 
-\begin{center}
-\fbox{%
-\parbox{0.96\linewidth}{%
-\textbf{\(\mathsf{ThresholdRingCT.Preprocess}(i,\pi)\)} \\
 Signer \(i\) prepares \(\pi\) single-use nonce bundles for the \(s\)-part (bases \(g\) and \(\Hgrp(\mathsf{pk})\)).
 
 \begin{enumerate}
@@ -88,22 +142,25 @@ Each proof consumes one \textit{unused} index \(j\) from \(L_i\), after which pa
 %   (R^{(H)}_{i,0}[j],\,R^{(H)}_{i,1}[j])
 % \Big),
 % \]
-}%
+\end{minipage}
 }
-\end{center}
+\caption{\(\mathsf{ThresholdRingCT.Preprocess}\) procedure} 
+\label{fig:preprocess}
+\end{figure}
 
-\begin{center}
-\fbox{%
-\parbox{0.96\linewidth}{%
+\begin{figure}[t]
+\centering
+\scalebox{0.9}{
+\framebox{
+\begin{minipage}{0.95\linewidth}
 \textbf{\(\mathsf{ThresholdRingCT.Sign}\)}
 % ~(FROST-style two-round $\Sigma$-proof; \emph{indistinguishable from single-prover}).
 
 \smallskip
 
-\textcolor{red}{Let $\Coord$ denote the coordinator, who may also be one of the signing participants}. Let $\mathcal S$ be an active set of signers (size $\ge t$) representing the participants selected for this signing round, and let $\pk$ denote the group public key and $\pk_i$ public key share. 
-Define $B = \langle (i, R_{1,i}, R_{2,i}) \rangle_{i \in \mathcal{S}}$ as the ordered list of participant identifiers, where each $P_i$ is associated with its index $i$, commitment values $(R_{1,i}, R_{2,i})$, and secret share $s_i$. 
-Let $\mathcal{L}_i$ denote the set of commitment values for $P_i$ that were published during the $\mathsf{Preprocess}$ stage. 
-Each identifier $i$ is linked with the commitments $(R_{1,i}, R_{2,i})$ posted by $P_i$ for this signing operation.
+\textcolor{red}{Let $\Coord$ denote the coordinator, who may also be one of the signing participants}. Let $\mathcal S$ be an active set of signers (size $\ge t$) representing the participants selected for this signing round, and let $\pk$ denote the group public key and $\pk_i$ public key share associated with secret share $s_i$. 
+Let $L_i$ denote the set of commitment values for $P_i$ that were published during the $\mathsf{Preprocess}$ stage. 
+Define $\mathcal{B} = \langle (i, R_{1,i}, R_{2,i}) \rangle_{i \in \mathcal{S}}$ as the ordered list of nonce commitments for this signing operation, where each $P_i$ is associated with its index $i$. 
 
 \medskip
 \textbf{Public parameters{(\(\mathsf{crs}\))}.}
@@ -129,7 +186,9 @@ All account holders $i\in\mathcal S$ (with $|\mathcal S|\ge t$) know $(a,r)\in\Z
 % \(\Prover\leftrightarrow\Coord\): \roundlabel{Fetch and broadcast commitments}
 \begin{itemize}
   \item
-  \(\Coord\) fetches, for each \(i\in\mathcal S\), the next available tuple
+  \(\Coord\) 
+  \begin{itemize}
+  \item Fetches, for each \(i\in\mathcal S\), the next available tuple
   \[
     \big(R^{(g)}_{i,0},R^{(g)}_{i,1},R^{(H)}_{i,0},R^{(H)}_{i,1}\big)\in L_i,
   \]
@@ -137,15 +196,22 @@ All account holders $i\in\mathcal S$ (with $|\mathcal S|\ge t$) know $(a,r)\in\Z
   \(
     \mathcal B := \{(R^{(g)}_{i,0},R^{(g)}_{i,1},R^{(H)}_{i,0},R^{(H)}_{i,1})\}_{i\in\mathcal S}.
   \)
-  \item \(\Coord\) samples \((\alpha,\beta)\xleftarrow{\$}\mathbb Z_q^2\),
+  \item Samples \((\alpha,\beta)\xleftarrow{\$}\mathbb Z_q^2\),
   sets \(T_0:=g^{\alpha}h^{\beta}\),
   and broadcasts to every \(i\in\mathcal S\) the tuple
   \[
     \big(\cm,\mathsf{pk},\ T_0,\ \mathcal B\big).
   \]
+\end{itemize}
+
+
 \item 
+% \textbf{(Responses.)}
+  Each \(i\in\mathcal S\)
+\begin{itemize}
+    \item 
 % \textbf{(Validation at each signer.)}
-  Upon receipt, each \(i\in\mathcal S\)  checks if
+  Upon receipt, checks if
   \(\{R^{(g)}_{i,\ell}, R^{(H)}_{i,\ell}\}_{\ell \in \{0,1\}}\in \G\) appearing in \(\mathcal B\) are in unused commitments in set $L_i$. Abort if check fails.
 
   \item 
@@ -163,11 +229,6 @@ All account holders $i\in\mathcal S$ (with $|\mathcal S|\ge t$) know $(a,r)\in\Z
   \[
     c\ \leftarrow\ \Hchal\!\big(\dstchal,\ \cm,\ \mathsf{pk}, \ T_0,\ T_1,\ T_2\big)\in\mathbb Z_q.
   \]
-
-\item 
-% \textbf{(Responses.)}
-  Each \(i\in\mathcal S\)
-\begin{itemize}
   \item Computes \(\tau_i=\Hgrp(\mathsf{pk})^{s_i}\),
   \item Computes proof \(z_{s,i}\) of knowledge of \(s_i\) such that
   \(
@@ -199,7 +260,7 @@ where $\gamma=\sum_{i}\rho_{i,0}+b\sum_{i}\rho_{i,1}$.
 \[
 z_a\ :=\ \alpha  + c\,a,\qquad z_r := \beta+ c\,r.
 \]
-\item Outputs the single transcript $\Pi=(\tau,T_0,T_1,T_2,z_a,z_r,z_s)$.
+\item Outputs the single transcript $\tau,\Pi=(T_0,T_1,T_2,z_a,z_r,z_s)$.
 \end{itemize}
 \end{itemize}
 
@@ -231,14 +292,19 @@ z_a\ :=\ \alpha  + c\,a,\qquad z_r := \beta+ c\,r.
 
 
 
-}%
+
+\end{minipage}
 }
-\end{center}
+}
+\caption{\(\mathsf{ThresholdRingCT.Sign}\) procedure} 
+\label{fig:sign}
+\end{figure}
 
 
-\begin{center}
-\fbox{%
-\parbox{0.96\linewidth}{%
+\begin{figure}[t]
+\centering
+\framebox{
+\begin{minipage}{0.95\linewidth}
 \textbf{\(\mathsf{ThresholdSrc.Verify}(\mathsf{crs},\mathsf{stmt},\Pi)\)}
 
 \medskip
@@ -246,7 +312,7 @@ z_a\ :=\ \alpha  + c\,a,\qquad z_r := \beta+ c\,r.
 
 \textbf{Computation.}
 \[
-c\ \leftarrow\ \Hchal\!\big(\dstchal,\cm,\mathsf{pk},\tau, T_0,T_1,T_2\big).
+c\ \leftarrow\ \Hchal\!\big(\dstchal,\cm,\mathsf{pk}, T_0,T_1,T_2\big).
 \]
 
 \textbf{Checks.} Accept iff all hold in $\G$:
@@ -254,12 +320,16 @@ c\ \leftarrow\ \Hchal\!\big(\dstchal,\cm,\mathsf{pk},\tau, T_0,T_1,T_2\big).
 g^{z_a}\,h^{z_r}\ \stackrel{?}{=}\ T_0\cdot \cm^{\,c}\quad\text{(Pedersen opening with hidden $a$)},
 \]
 \[
-g^{z_s}\ \stackrel{?}{=}\ T_1\cdot \mathsf{pk}^{c},\qquad
+g^{z_s}\ \stackrel{?}{=}\ T_1\cdot \mathsf{pk}^{c},
+\]
+\[
 \Hgrp(\mathsf{pk})^{z_s}\ \stackrel{?}{=}\ T_2\cdot \tau^{c}.
 \]
-}%
+\end{minipage}
 }
-\end{center}
+\caption{$\mathsf{ThresholdRingCT.Verify}$ procedure.}
+\label{fig:verify}
+\end{figure}
 
 
 
@@ -267,7 +337,7 @@ g^{z_s}\ \stackrel{?}{=}\ T_1\cdot \mathsf{pk}^{c},\qquad
 
 \subsection{Language and Argument for Spend Signature of Knowledge (Common Part)}
 
-\subsection{Putting Everything Together}
+\subsection{Putting Everything Together: Threshold RingCT transactions}
 
 
 \paragraph{2PC}

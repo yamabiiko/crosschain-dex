@@ -203,27 +203,37 @@ The client upon verification of $\sigma^\pool_\exc$ proceeds to publish $\tx_{\c
 The exchange protocol, in case any routine times out or assertion fails prior to signing $\tx_{\chaina}$, aborts with no transaction occurring. After signing, if the transaction $\tx_{\chainb}$ does not get confirmed after some timeout, the client proceeds to call the contest protocol as in \cref{fig:dex_refund}. It updates the header of the verification contract $\mathsf{VS}$ and then generates a vector commitment proof, stating that $\tx_{\chaina}$ is a subvector with respect to a Merkle root commitment of a specified header $n$. It then submits the proof to the contest service contract $\mathsf{CS}$, which upon verification will either provides a full signature $\sigma^\pool_{\tx_{\chainb}}$ or a refund from the uncooperative liquidity providers.
 
 
-\subsection{UC functionality}
+\subsection{Ledger functionality}
 
 \begin{center}
 \fbox{%
 \parbox{0.96\linewidth}{%
 {\Large \textbf{Functionality} $\mathcal{G}_{\mathsf{ledger}}$}  \\[1em]
 \smallskip
-\textbf{Parameters:} Integers \texttt{windowSize}, \texttt{Delay}; Algorithms $\mathsf{Validate}$, $\mathsf{ExtendPolicy}$. $\mathsf{Blockify}$, $\mathsf{TxExtract}$, P. Random distribution $\mathcal{X}$ \\
+\textbf{Parameters:} Integers \texttt{windowSize}, \texttt{Delay}; Algorithms $\mathsf{Validate}$, $\mathsf{ExtendPolicy}$, $\mathsf{Blockify}$, $\mathsf{Blind}$, $\mathsf{BlindTx}$, P. Random distribution $\mathcal{X}$ \\
 \smallskip
 \textbf{Clock-time:} \\
 \smallskip
-\textbf{Variables and initialization:} The functionality intializes $\texttt{p\_state}$, $\texttt{l\_state}$, $\texttt{NxtBC}$, $\texttt{buffer} \gets \emptyset$ \\
+\textbf{Variables and initialization:} The functionality intializes $\state$, $\texttt{NxtBC}$, $\buffer \gets \emptyset$ \\
 
 \begin{pchstack}[boxed]
 \begin{pcvstack}
 \pseudocode{
-    \mathsf{TxSubmit}(\mathsf{sid}, \texttt{tx})  \:\: \\[0.1\baselineskip ][\hline]
-    \texttt{txid} \sample \mathcal{X} \\
-    \mathsf{BTX} \gets (\mathsf{txid}, \texttt{tx}) \\
-    \pcif \mathsf{Validate}(\mathsf{BTX}, \texttt{l\_state}) = 1 \\
-    \t \texttt{buffer} \gets \texttt{buffer} \cup \mathsf{BTX} \\
+    \mathsf{Input}(I, P)  \:\: \\[0.1\baselineskip ][\hline]
+    \tau_L \gets \mathcal{G}_\mathsf{CLOCK} \\
+    \pcif P \in \mathcal{P} \setminus \mathcal{H} \\
+    \t \mathsf{StateUpdate} \\
+    \pcif I = (\mathsf{SUBMIT}, \mathsf{sid}, \texttt{tx}) \\
+    \t \mathsf{TxSubmit}(\mathsf{sid}, \texttt{tx}) \\
+    \t I := (\mathsf{SUBMIT}, \mathsf{sid}, \mathsf{BlindTx}_\adv(\state, \mathcal{P} \setminus \mathcal{H}, \texttt{tx})) \\
+    \pcif I = (\mathsf{READ}, \mathsf{sid}) \\
+    \t \pcif P = \adv \\
+    \t\t \mathsf{send}(\mathsf{Blind}_\adv(\mathcal{P} \setminus \mathcal{H}, \state), \mathsf{map}(\mathsf{BlindTx}_\adv(\state, \mathcal{P} \setminus \mathcal{H}), \buffer), \adv) \\
+    \t \pcelse \\
+    \t\t \mathsf{send}(\mathsf{Blind}(P, \state), \mathsf{map}(\mathsf{BlindTx}(\state, P), \buffer), P) \\
+    \pcif I = (\mathsf{MANTAIN}, \mathsf{sid}) \\
+    \t TODO \\
+    \inputs := \inputs || (I, P, \tau_L)
 }
 \end{pcvstack}
 \qquad
@@ -231,22 +241,103 @@ The exchange protocol, in case any routine times out or assertion fails prior to
 \begin{pcvstack}
 \pseudocode{
     \mathsf{StateUpdate}  \:\: \\[0.1\baselineskip ][\hline]
-    (N, ls') \gets \mathsf{ExtendPolicy}(\texttt{l\_state}, \texttt{NxtBC}, \texttt{buffer}) \\
+    N \gets \mathsf{ExtendPolicy}(\state, \texttt{NxtBC}, \buffer) \\
     \assert N \neq \emptyset \\
-    \texttt{state} \gets \state | \mathsf{Blockify}(N) \\
-    \texttt{l\_state} \gets ls' \\
-    \pcfor \mathsf{BTX} \in \texttt{buffer} \\
-    \t \pcif \mathsf{Validate}(\mathsf{BTX}, \texttt{l\_state}) \\
-    \t\t \texttt{buffer} \gets \texttt{buffer} \setminus \mathsf{BTX}
+    \state \gets \state || \mathsf{Blockify}(N) \\
+    \pcfor \mathsf{BTX} \in \buffer \\
+    \t \pcif \mathsf{Validate}(\mathsf{BTX}, \state) = 0 \\
+    \t\t \buffer \gets \buffer \setminus \mathsf{BTX}
 }
 \vspace{1em}
 \pseudocode{
-    \mathsf{ExtendPolicy}(\texttt{l\_state}, \texttt{NxtBC}, \texttt{buffer})  \:\: \\[0.1\baselineskip ][\hline]
+    \mathsf{TxSubmit}(\mathsf{sid}, \texttt{tx})  \:\: \\[0.1\baselineskip ][\hline]
+    \texttt{txid} \sample \mathcal{X} \\
+    \mathsf{BTX} \gets (\mathsf{txid}, \texttt{tx}) \\
+    \pcif \mathsf{Validate}(\mathsf{BTX}, \state) = 1 \\
+    \t \buffer \gets \buffer \cup \mathsf{BTX} \\
+}
+\end{pcvstack}
+\end{pchstack}
+}
+}
+\end{center}
+
+\begin{figure}[H]
+\begin{minipage}[t]{0.5\textwidth}
+\begin{pchstack}[boxed]
+\pseudocode{
+    \mathsf{ExtendPolicy}_P(\state, \texttt{NxtBC}, \buffer)  \:\: \\[0.1\baselineskip ][\hline]
     N \gets \emptyset \\
     \pcfor \mathsf{BTX} \in \texttt{NxtBC} \\
-    \t \texttt{aux} \gets \mathsf{TxExtract}(\texttt{tx}) \\
-    \t \pcif P(\aux, \texttt{tx}, \texttt{l\_state}) = 1 \\
+    \t \pcif P(\state, \texttt{tx}) = 1 \\
     \t\t N \gets N \cup \mathsf{BTX}
+}
+\end{pchstack}
+\end{minipage}
+\end{figure}
+
+\subsection{DEX functionality}
+\begin{center}
+\fbox{%
+\parbox{0.96\linewidth}{%
+{\Large \textbf{Functionality} $\mathcal{G}_{\mathsf{DEX}}$}  \\[1em]
+\smallskip
+\textbf{Parameters:} Integers ???, Algorithms $\mathsf{Exchange}$, $\mathsf{Convert}$,  \\
+\smallskip
+\textbf{Clock-time:} \\
+\smallskip
+\textbf{Variables and initialization:} The functionality intializes $\texttt{c\_round} = 0$ \\
+
+\begin{pchstack}[boxed]
+\begin{pcvstack}
+\pseudocode{
+    \mathsf{Input}(I, P)  \:\: \\[0.1\baselineskip ][\hline]
+    \tau_L \gets \mathcal{G}_\mathsf{CLOCK} \\
+    \pcif I = (\mathsf{EXCHANGE}, \mathsf{sid}, \texttt{round}, \transcript_r) \\
+    \t \mathsf{Exchange}(\mathsf{sid}, \texttt{round}, \transcript, P) \\
+    \pcif I = (\mathsf{REFUND}, \mathsf{sid}, \texttt{round}, \transcript) \\
+    \t \mathsf{Refund}(\mathsf{sid}, \texttt{round}, \transcript) \\
+    \t TODO \\
+    \inputs := \inputs || (I, P, \tau_L)
+}
+\vspace{1em}
+\pseudocode{
+    \mathsf{Refund}(\mathsf{sid}, \round, \transcript_r, P) \:\: \\[0.1\baselineskip ][\hline]
+    \assert(\transcript[P] = \transcript_r) \\
+    (\tx_0, \ledger_0, \ledger_1, \tx_1) := \parse \transcript_r \\
+    \texttt{state}^{\ledger_0} \gets \mathcal{G}_\mathsf{ledger}^{\ledger_0}(\mathsf{READ}, \mathsf{sid}) \\
+    \assert \tx_0 \in \texttt{state}^{\ledger_0} \\
+}
+\end{pcvstack}
+\qquad
+\qquad
+\begin{pcvstack}
+\pseudocode{
+    \mathsf{Exchange}(\mathsf{sid}, \texttt{round}, \transcript_r, P) \:\: \\[0.1\baselineskip ][\hline]
+    \assert \round = \cround[P]+ 1 \\
+    \pcif \round = 1 \\
+    \t (\tx_0, \ledger_0, \ledger_1, \dst_1) := \parse \transcript_r \\
+    \t (\amnt_0, \src_0, \dst_0) := \parse \tx \\
+    \t \amnt_1 := \mathsf{Convert}(\amnt_0, \ledger_0, \ledger_1) \\
+    \t \assert \ledger_0, \ledger_1 \in \pool \land \amnt_1 \leq \mathsf{max}(\ledger_1) \land \dst = P_{\ledger_0} \\
+    \t \tx_1 := (\amnt_1, P_{\ledger_1}, \dst_1) \\
+    \t \send(\tx_1, P) \\
+    \t \transcript[P] := \transcript_r || \tx_1 \\
+    \pcif \round = 2 \\
+    \t \sigma^0_{\transcript} := \parse \transcript_r \\
+    \t \assert \mathcal{F}_\mathsf{SIG}(\texttt{Verify}, \mathsf{sid}, \transcript, \sigma_{\transcript}, \mathsf{VK}[P]) \\
+    \t \sigma^1_{\transcript} \gets \mathcal{F}_\mathsf{SIG}(\texttt{Sign}, \mathsf{sid}, \transcript) \\
+    \t \send(\sigma^1_{\transcript}, P) \\
+    \t \transcript[P] := \transcript_r || \sigma^1_{\transcript} \\
+    \t \pcwhile \tx_0 \notin \texttt{state}^{\ledger_0} \\
+    \t\t \texttt{state}^{\ledger_0} \gets \mathcal{G}_\mathsf{ledger}^{\ledger_0}(\mathsf{READ}, \mathsf{sid}) \\
+    \t \tx_1 := \tx_1 || W_{\ledger_1} \\
+    \t\t \mathcal{G}_\mathsf{ledger}^{\ledger_1}(\mathsf{SUBMIT}, \mathsf{sid}, \tx_1) \\
+    \cround[P] = \cround[P] + 1
+}
+\vspace{1em}
+\pseudocode{
+    \mathsf{Setup}(\mathsf{sid}) \:\: \\[0.1\baselineskip ][\hline]
 }
 \end{pcvstack}
 \end{pchstack}
